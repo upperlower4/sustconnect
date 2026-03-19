@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --acc: #e8187a;
+  --bg: #0a0a0d;
+  --surf: #101013;
+  --surf2: #161619;
+  --surf3: #1d1d21;
+  --bdr: #1e1e24;
+  --bdr2: #2a2a33;
+  --txt: #e8e8f0;
+  --txt2: #6e6e88;
+  --txt3: #34344a;
+}
+
+.light {
+  --bg: #f4f4f7;
+  --surf: #ffffff;
+  --surf2: #f0f0f4;
+  --surf3: #e8e8ef;
+  --bdr: #e0e0ea;
+  --bdr2: #cacad8;
+  --txt: #0f0f1a;
+  --txt2: #666680;
+  --txt3: #aaaacc;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--txt);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--bdr2); border-radius: 99px; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.45); }
+  65%  { transform: scale(0.88); }
+  100% { transform: scale(1); }
+}
+
+.animate-slide-up { animation: slideUp 0.2s ease; }
+.animate-fade-in  { animation: fadeIn 0.2s ease; }
+.animate-heart    { animation: heartPop 0.3s ease; }
