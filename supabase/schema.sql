@@ -64,6 +64,15 @@ CREATE TABLE post_loves (
   UNIQUE(post_id, user_id)
 );
 
+-- COMMENT LOVES
+CREATE TABLE comment_loves (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  comment_id UUID REFERENCES comments(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(comment_id, user_id)
+);
+
 -- COMMENTS
 CREATE TABLE comments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -172,6 +181,13 @@ BEGIN
   RETURN NULL; END; $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_comment AFTER INSERT OR DELETE ON comments FOR EACH ROW EXECUTE FUNCTION update_comment_count();
 
+CREATE OR REPLACE FUNCTION update_comment_love_count() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN UPDATE comments SET love_count = love_count + 1 WHERE id = NEW.comment_id;
+  ELSIF TG_OP = 'DELETE' THEN UPDATE comments SET love_count = love_count - 1 WHERE id = OLD.comment_id; END IF;
+  RETURN NULL; END; $$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_comment_love AFTER INSERT OR DELETE ON comment_loves FOR EACH ROW EXECUTE FUNCTION update_comment_love_count();
+
 CREATE OR REPLACE FUNCTION check_crush_match() RETURNS TRIGGER AS $$
 DECLARE v_reverse UUID;
 BEGIN
@@ -198,6 +214,7 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_loves ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comment_loves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE friendships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE crushes ENABLE ROW LEVEL SECURITY;
@@ -217,9 +234,14 @@ CREATE POLICY "views_insert" ON post_views FOR INSERT WITH CHECK (TRUE);
 CREATE POLICY "views_read"   ON post_views FOR SELECT USING (TRUE);
 CREATE POLICY "loves_all"    ON post_loves FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "loves_read"   ON post_loves FOR SELECT USING (TRUE);
+CREATE POLICY "comment_loves_all" ON comment_loves FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "comment_loves_read" ON comment_loves FOR SELECT USING (TRUE);
 CREATE POLICY "comments_read"   ON comments FOR SELECT USING (TRUE);
-CREATE POLICY "comments_write"  ON comments FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "comments_write"  ON comments FOR INSERT WITH CHECK (TRUE);
 CREATE POLICY "comments_delete" ON comments FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "friendships_read" ON friendships FOR SELECT USING (TRUE);
+CREATE POLICY "friendships_write" ON friendships FOR INSERT WITH CHECK (TRUE);
+CREATE POLICY "friendships_update" ON friendships FOR UPDATE USING (TRUE);
 CREATE POLICY "notifs_own"   ON notifications FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "dm_own"       ON dm_threads FOR SELECT USING (auth.uid() = ANY(participant_ids));
 CREATE POLICY "msg_read"     ON messages FOR SELECT USING (EXISTS (SELECT 1 FROM dm_threads WHERE id = thread_id AND auth.uid() = ANY(participant_ids)));

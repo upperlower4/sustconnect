@@ -1,16 +1,10 @@
 'use client'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuthStore, useDMStore } from '@/lib/store'
 import Avatar from '@/components/ui/Avatar'
-
-const mainLinks = [
-  { href: '/',              icon: 'fa-solid fa-house',            label: 'Feed' },
-  { href: '/crush',         icon: 'fa-regular fa-heart',          label: 'Crush',         badge: 3 },
-  { href: '#dm',            icon: 'fa-regular fa-comment',        label: 'Messages',       badge: 2, isDM: true },
-  { href: '/notifications', icon: 'fa-regular fa-bell',           label: 'Notifications',  badge: 5 },
-  { href: '/search',        icon: 'fa-solid fa-magnifying-glass', label: 'Search' },
-]
+import { supabase } from '@/lib/supabase'
 
 const browseLinks = [
   { href: '/jobs',        icon: 'fa-solid fa-briefcase',         label: 'Jobs',       color: '#34d399' },
@@ -24,6 +18,32 @@ export default function LeftNav() {
   const pathname = usePathname()
   const { user } = useAuthStore()
   const { toggle } = useDMStore()
+  const [crushCount, setCrushCount] = useState(0)
+  const [dmCount, setDmCount] = useState(0)
+  const [notifCount, setNotifCount] = useState(0)
+
+  useEffect(() => {
+    if (!user) return
+    async function loadCounts() {
+      const [crush, dm, notif] = await Promise.all([
+        supabase.from('crushes').select('id', { count: 'exact' }).eq('receiver_id', user!.id).eq('is_matched', false),
+        supabase.from('dm_threads').select('id', { count: 'exact' }).contains('participant_ids', [user!.id]).eq('is_request', true),
+        supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user!.id).eq('is_read', false),
+      ])
+      setCrushCount(crush.count || 0)
+      setDmCount(dm.count || 0)
+      setNotifCount(notif.count || 0)
+    }
+    loadCounts()
+  }, [user])
+
+  const mainLinks = [
+    { href: '/',              icon: 'fa-solid fa-house',            label: 'Feed' },
+    { href: '/crush',         icon: 'fa-regular fa-heart',          label: 'Crush',         badge: crushCount },
+    { href: '#dm',            icon: 'fa-regular fa-comment',        label: 'Messages',       badge: dmCount, isDM: true },
+    { href: '/notifications', icon: 'fa-regular fa-bell',           label: 'Notifications',  badge: notifCount },
+    { href: '/search',        icon: 'fa-solid fa-magnifying-glass', label: 'Search' },
+  ]
 
   return (
     <nav className="sticky top-[44px] h-[calc(100vh-44px)] overflow-y-auto border-r flex flex-col gap-[1px] px-2 py-[14px]"

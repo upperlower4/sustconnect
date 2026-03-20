@@ -14,6 +14,7 @@ export default function PostCard({ post }: { post: Post }) {
   const { user } = useAuthStore()
   const [isLoved, setIsLoved] = useState<boolean>(false)
   const [loveCount, setLoveCount] = useState(post.love_count)
+  const [viewCount, setViewCount] = useState(post.view_count)
   const [loveAnim, setLoveAnim] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [lbSrc, setLbSrc] = useState<string | null>(null)
@@ -22,25 +23,35 @@ export default function PostCard({ post }: { post: Post }) {
 
   useEffect(() => {
     setMounted(true)
-    try {
-      const stored = localStorage.getItem('sust-loves')
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        const lovedList: string[] = parsed?.state?.loved || []
-        setIsLoved(lovedList.includes(post.id))
+    
+    // Load love state from Supabase
+    async function loadLoveState() {
+      if (user) {
+        const { data } = await supabase
+          .from('post_loves')
+          .select('id')
+          .eq('post_id', post.id)
+          .eq('user_id', user.id)
+          .single()
+        setIsLoved(!!data)
       }
-    } catch {}
+    }
+    loadLoveState()
 
-    const timer = setTimeout(() => {
-      fetch('/api/views', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId: post.id }),
-      }).catch(() => {})
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/views', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: post.id }),
+        })
+        const data = await res.json()
+        if (data.ok) setViewCount(v => v + 1)
+      } catch {}
     }, 2000)
 
     return () => clearTimeout(timer)
-  }, [post.id])
+  }, [post.id, user])
 
   async function handleLove() {
     if (!user) {
@@ -171,7 +182,7 @@ export default function PostCard({ post }: { post: Post }) {
           <div className="flex items-center justify-center gap-[5px] py-[10px] px-3 text-[11px]"
             style={{ color: 'var(--txt3)' }}>
             <i className="fa-regular fa-eye" />
-            <span>{formatCount(post.view_count)}</span>
+            <span>{formatCount(viewCount)}</span>
           </div>
         </div>
       </article>

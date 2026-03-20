@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { Post, Comment } from '@/types'
 import { useAuthStore } from '@/lib/store'
@@ -130,8 +130,23 @@ export default function PostDetailClient({ post, initialComments }: Props) {
 }
 
 function CommentItem({ comment, onReply }: { comment: Comment; onReply: (r: { id: string; name: string }) => void }) {
+  const { user } = useAuthStore()
   const [loved, setLoved] = useState(comment.is_loved || false)
   const [loveCount, setLoveCount] = useState(comment.love_count)
+
+  async function handleCommentLove() {
+    if (!user) { toast('❤️ Love করতে Sign Up করো!', { icon: '🔒' }); return }
+    const newLoved = !loved
+    setLoved(newLoved)
+    setLoveCount(c => newLoved ? c + 1 : c - 1)
+    try {
+      if (newLoved) {
+        await supabase.from('comment_loves').insert({ comment_id: comment.id, user_id: user.id })
+      } else {
+        await supabase.from('comment_loves').delete().eq('comment_id', comment.id).eq('user_id', user.id)
+      }
+    } catch {}
+  }
 
   return (
     <div className="flex gap-[8px] mb-[11px]">
@@ -143,7 +158,7 @@ function CommentItem({ comment, onReply }: { comment: Comment; onReply: (r: { id
         </div>
         <div className="text-[12.5px] mt-[2px] leading-[1.5]">{comment.content}</div>
         <div className="flex gap-[10px] mt-[5px]">
-          <button onClick={() => { setLoved(!loved); setLoveCount(c => loved ? c - 1 : c + 1) }}
+          <button onClick={handleCommentLove}
             className={`text-[10.5px] transition-colors ${loved ? 'text-[var(--acc)]' : 'text-txt3 hover:text-txt2'}`}>
             <i className={`${loved ? 'fa-solid' : 'fa-regular'} fa-heart mr-[3px]`} />{loveCount}
           </button>

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { User, Post } from '@/types'
 import { useAuthStore } from '@/lib/store'
 import { formatDOB } from '@/lib/utils'
@@ -9,6 +9,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import PostCard from '@/components/post/PostCard'
 import Avatar from '@/components/ui/Avatar'
 import Lightbox from '@/components/ui/Lightbox'
+import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
 const TABS = ['Posts', 'Jobs', 'Sells', 'Friends']
@@ -22,9 +23,39 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
   const isOwnProfile = me?.id === profileUser.id
   const showPrem = me && me.gender !== profileUser.gender
 
-  function handleProtected(action: string) {
-    if (!me) { toast(`${action} করতে Sign Up করো!`, { icon: '🔒' }); return false }
-    return true
+  const [friendStatus, setFriendStatus] = useState<string | null>(null)
+  const [premStatus, setPremStatus] = useState<string | null>(null)
+
+  async function sendFriendRequest() {
+    if (!me) { toast('Friend Request করতে Sign Up করো!', { icon: '🔒' }); return }
+    if (friendStatus === 'pending') { toast.error('Already sent!'); return }
+    try {
+      const { error } = await supabase.from('friendships').insert({ user_id: me.id, friend_id: profileUser.id, type: 'friend', status: 'pending' })
+      if (error) { if (error.code === '23505') { toast.error('Already sent!'); return } throw error }
+      setFriendStatus('pending')
+      toast.success('🤝 Friend Request পাঠানো হয়েছে!')
+    } catch (err: any) { toast.error(err.message) }
+  }
+
+  async function sendPremRequest() {
+    if (!me) { toast('Prem Request করতে Sign Up করো!', { icon: '🔒' }); return }
+    if (premStatus === 'pending') { toast.error('Already sent!'); return }
+    try {
+      const { error } = await supabase.from('friendships').insert({ user_id: me.id, friend_id: profileUser.id, type: 'prem', status: 'pending' })
+      if (error) { if (error.code === '23505') { toast.error('Already sent!'); return } throw error }
+      setPremStatus('pending')
+      toast.success('💕 Prem Request পাঠানো হয়েছে!')
+    } catch (err: any) { toast.error(err.message) }
+  }
+
+  async function startDM() {
+    if (!me) { toast('Message করতে Sign Up করো!', { icon: '🔒' }); return }
+    try {
+      const { data: existing } = await supabase.from('dm_threads').select('id').contains('participant_ids', [me.id, profileUser.id]).single()
+      if (existing) { toast('DM already open!'); return }
+      await supabase.from('dm_threads').insert({ participant_ids: [me.id, profileUser.id] })
+      toast.success('💬 DM খোলা হয়েছে!')
+    } catch (err: any) { toast.error(err.message) }
   }
 
   return (
@@ -67,15 +98,15 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
               <div className="flex gap-[5px] items-center">
                 {!isOwnProfile && (
                   <>
-                    <button onClick={() => handleProtected('Message')} className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors">
+                    <button onClick={startDM} className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors">
                       <i className="fa-regular fa-comment" />
                     </button>
                     {showPrem && (
-                      <button onClick={() => handleProtected('Prem Request')} className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors" style={{ color: '#f472b6' }}>
+                      <button onClick={sendPremRequest} className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors" style={{ color: '#f472b6' }}>
                         <i className="fa-solid fa-heart" />
                       </button>
                     )}
-                    <button onClick={() => handleProtected('Friend Request')} className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white hover:opacity-88 transition-opacity" style={{ background: 'var(--acc)' }}>
+                    <button onClick={sendFriendRequest} className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white hover:opacity-88 transition-opacity" style={{ background: 'var(--acc)' }}>
                       <i className="fa-solid fa-user-plus" /> Add Friend
                     </button>
                   </>

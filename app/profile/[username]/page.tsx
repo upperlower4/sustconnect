@@ -26,6 +26,7 @@ export default async function ProfilePage({ params }: Props) {
     .select(`*, user:users(id,full_name,username,avatar_url,department,session,is_verified)`)
     .eq('user_id', profileUser.id)
     .eq('status', 'active')
+    .eq('is_anonymous', false)
     .order('created_at', { ascending: false })
     .limit(20)
 

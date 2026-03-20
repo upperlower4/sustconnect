@@ -1,5 +1,4 @@
 'use client'
-import { useState } from 'react'
 
 const COLORS = ['#e8187a','#7c3aed','#0d9488','#d97706','#0284c7','#e11d48','#059669']
 

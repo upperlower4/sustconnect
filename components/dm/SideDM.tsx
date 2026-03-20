@@ -18,7 +18,15 @@ export default function SideDM() {
 
   async function loadThreads() {
     const { data } = await supabase.from('dm_threads').select('*').contains('participant_ids', [user!.id]).order('last_message_at', { ascending: false })
-    setThreads(data || [])
+    
+    // Get other user info for each thread
+    const threadsWithUsers = await Promise.all((data || []).map(async (t: any) => {
+      const otherUserId = t.participant_ids.find((id: string) => id !== user!.id)
+      const { data: otherUser } = await supabase.from('users').select('id, full_name, username, avatar_url').eq('id', otherUserId).single()
+      return { ...t, other_user: otherUser }
+    }))
+    
+    setThreads(threadsWithUsers)
   }
 
   async function openThread(t: any) {
@@ -32,6 +40,7 @@ export default function SideDM() {
     if (!input.trim() || !active || !user) return
     const txt = input.trim(); setInput('')
     await supabase.from('messages').insert({ thread_id: active.id, sender_id: user.id, content: txt, is_read: false })
+    await supabase.from('dm_threads').update({ last_message: txt, last_message_at: new Date().toISOString() }).eq('id', active.id)
     const { data } = await supabase.from('messages').select('*, sender:users(id,full_name,avatar_url)').eq('thread_id', active.id).order('created_at')
     setMessages(data || [])
     setTimeout(() => msgsRef.current?.scrollTo(0, msgsRef.current.scrollHeight), 50)

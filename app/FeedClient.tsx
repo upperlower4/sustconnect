@@ -61,7 +61,17 @@ export default function FeedClient({ initialPosts }: { initialPosts: Post[] }) {
             ))}
           </div>
           <div className="p-[10px]">
-            {user && <CreatePost onPost={() => { setPosts([]); setPage(0) }} />}
+            {user && <CreatePost onPost={async () => {
+              // Fetch the latest posts and prepend to existing feed
+              const { data } = await supabase
+                .from('posts')
+                .select(`*, user:users(id,full_name,username,avatar_url,department,session,is_verified)`)
+                .eq('status', 'active')
+                .order('is_pinned', { ascending: false })
+                .order('created_at', { ascending: false })
+                .limit(20)
+              if (data) setPosts(data)
+            }} />}
             {posts.map(p => <PostCard key={p.id} post={p} />)}
             {loading && <div className="text-center py-[20px] text-[13px]" style={{ color: 'var(--txt3)' }}><i className="fa-solid fa-spinner fa-spin mr-2" />Loading...</div>}
             {!hasMore && posts.length > 0 && <div className="text-center py-[20px] text-[12px]" style={{ color: 'var(--txt3)' }}>— End of feed —</div>}

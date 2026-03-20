@@ -83,7 +83,7 @@ export default function SettingsPage() {
                   <h2 className="text-[14px] font-bold pb-[11px] border-b border-bdr mb-[14px]">Profile</h2>
                   <div className="flex items-center gap-[12px] mb-[16px]">
                     <div className="relative cursor-pointer" onClick={() => user?.avatar_url && setLbOpen(true)}>
-                      <Avatar user={user} size="xl" clickable />
+                      <Avatar user={user} size="xl" />
                       <div className="absolute bottom-[3px] right-[3px] w-5 h-5 bg-surf2 border-2 border-surf rounded-full flex items-center justify-center text-[9px] text-txt2">
                         <i className="fa-solid fa-camera" />
                       </div>
