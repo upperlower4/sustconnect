@@ -37,25 +37,31 @@ export default function AdminPage() {
 
   async function loadData() {
     setLoading(true)
-    const [
-      { count: uCount },
-      { count: pCount },
-      { count: rCount },
-      { count: bCount },
-      { data: rData },
-      { data: bData },
-    ] = await Promise.all([
-      supabase.from('users').select('id', { count: 'exact', head: true }),
-      supabase.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('badge_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('reports').select(`*, reporter:users!inner(full_name,username), post:posts!inner(id,type,content,user_id)`).eq('status', 'pending').order('created_at', { ascending: false }).limit(20),
-      supabase.from('badge_requests').select(`*, user:users!inner(id,full_name,username,avatar_url,post_count,friend_count)`).eq('status', 'pending').order('created_at', { ascending: false }),
-    ])
-    setStats({ users: uCount || 0, posts: pCount || 0, reports: rCount || 0, badges: bCount || 0 })
-    setReports(rData || [])
-    setBadgeReqs(bData || [])
-    setLoading(false)
+    try {
+      const [
+        { count: uCount },
+        { count: pCount },
+        { count: rCount },
+        { count: bCount },
+        { data: rData },
+        { data: bData },
+      ] = await Promise.all([
+        supabase.from('users').select('id', { count: 'exact', head: true }),
+        supabase.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('badge_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('reports').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(20),
+        supabase.from('badge_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
+      ])
+      setStats({ users: uCount || 0, posts: pCount || 0, reports: rCount || 0, badges: bCount || 0 })
+      setReports(rData || [])
+      setBadgeReqs(bData || [])
+    } catch (error) {
+      console.error('Admin load error:', error)
+      toast.error('Failed to load admin data')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function deletePost(postId: string) {
@@ -112,18 +118,22 @@ export default function AdminPage() {
           <div className="text-[14px] font-bold flex items-center gap-[6px] px-[9px] py-[7px] mb-[7px]">
             <i className="fa-solid fa-shield-halved" style={{ color: 'var(--acc)' }} /> Admin
           </div>
-          {NAV.map(n => (
-            <button key={n.id} onClick={() => setActive(n.id)}
-              className={`flex items-center gap-[8px] px-[9px] py-[7px] rounded-[7px] text-[12.5px] font-medium w-full transition-all ${active === n.id ? 'bg-surf2 text-txt font-semibold' : 'text-txt2 hover:bg-surf2 hover:text-txt'}`}>
-              <i className={`${n.icon} w-[15px] text-[12px]`} style={n.color ? { color: n.color } : {}} />
-              {n.label}
-              {n.badge !== undefined && stats[n.id as keyof typeof stats] > 0 && (
-                <span className="ml-auto text-[9.5px] font-bold text-white px-[5px] py-[1px] rounded-full" style={{ background: n.color || 'var(--acc)' }}>
-                  {stats[n.id as keyof typeof stats]}
-                </span>
-              )}
-            </button>
-          ))}
+          {NAV.map(n => {
+                if (!n?.id) return null
+                
+                return (
+                <button key={n.id} onClick={() => setActive(n.id)}
+                  className={`flex items-center gap-[8px] px-[9px] py-[7px] rounded-[7px] text-[12.5px] font-medium w-full transition-all ${active === n.id ? 'bg-surf2 text-txt font-semibold' : 'text-txt2 hover:bg-surf2 hover:text-txt'}`}>
+                  <i className={`${n.icon} w-[15px] text-[12px]`} style={n.color ? { color: n.color } : {}} />
+                  {n.label}
+                  {n.badge !== undefined && stats && stats[n.id as keyof typeof stats] > 0 && (
+                    <span className="ml-auto text-[9.5px] font-bold text-white px-[5px] py-[1px] rounded-full" style={{ background: n.color || 'var(--acc)' }}>
+                      {stats[n.id as keyof typeof stats]}
+                    </span>
+                  )}
+                </button>
+                )
+              })}
         </div>
 
         {/* Content */}
@@ -134,10 +144,10 @@ export default function AdminPage() {
               <div className="text-[17px] font-bold mb-[14px]">Dashboard</div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-[9px] mb-[20px]">
                 {[
-                  { label: 'Users',   n: stats.users,   color: 'var(--txt)',  icon: 'fa-solid fa-users' },
-                  { label: 'Posts',   n: stats.posts,   color: '#34d399',     icon: 'fa-regular fa-note-sticky' },
-                  { label: 'Reports', n: stats.reports, color: '#ef4444',     icon: 'fa-solid fa-flag' },
-                  { label: 'Badges',  n: stats.badges,  color: '#60a5fa',     icon: 'fa-solid fa-circle-check' },
+                  { label: 'Users',   n: (stats && stats.users) || 0,   color: 'var(--txt)',  icon: 'fa-solid fa-users' },
+                  { label: 'Posts',   n: (stats && stats.posts) || 0,   color: '#34d399',     icon: 'fa-regular fa-note-sticky' },
+                  { label: 'Reports', n: (stats && stats.reports) || 0, color: '#ef4444',     icon: 'fa-solid fa-flag' },
+                  { label: 'Badges',  n: (stats && stats.badges) || 0,  color: '#60a5fa',     icon: 'fa-solid fa-circle-check' },
                 ].map(({ label, n, color, icon }) => (
                   <div key={label} className="bg-surf border border-bdr rounded-[9px] p-[13px]">
                     <div className="text-[22px] font-black mb-[2px]" style={{ color }}>{n.toLocaleString()}</div>
@@ -171,27 +181,27 @@ export default function AdminPage() {
               <div className="text-[17px] font-bold mb-[14px]">Badge Requests ({stats.badges})</div>
               {badgeReqs.length === 0 && !loading && <Empty icon="fa-solid fa-circle-check" text="No pending badge requests" />}
               {badgeReqs.map(b => {
-                const userId = b.user?.id || b.user_id
-                if (!userId) return null
+                if (!b?.id) return null
                 
                 return (
                 <div key={b.id} className="bg-surf border border-bdr rounded-[9px] p-[13px] mb-[8px]">
                   <div className="flex items-center gap-[9px] mb-[10px]">
-                    <Avatar user={b.user} size="md" />
+                    <div className="w-[40px] h-[40px] rounded-full bg-surf2 border border-bdr flex items-center justify-center">
+                      <i className="fa-solid fa-user text-txt3" />
+                    </div>
                     <div>
-                      <div className="text-[13px] font-semibold">{b.user?.full_name || 'Unknown User'}</div>
-                      <div className="text-[11px] text-txt2">@{b.user?.username || 'unknown'} · {timeAgo(b.created_at)}</div>
+                      <div className="text-[13px] font-semibold">Badge Request</div>
+                      <div className="text-[11px] text-txt2">User ID: {b.user_id || 'Unknown'}</div>
                     </div>
                   </div>
                   <div className="text-[11.5px] text-txt2 mb-[10px] flex gap-[14px]">
-                    <span><b className="text-txt">{b.user?.post_count || 0}</b> posts</span>
-                    <span><b className="text-txt">{b.user?.friend_count || 0}</b> friends</span>
+                    <span><b className="text-txt">{b.user_id ? 'Valid' : 'Unknown'}</b> user</span>
                   </div>
                   <div className="flex gap-[6px]">
-                    <button onClick={() => approveBadge(userId, b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold text-white hover:opacity-88 transition-opacity" style={{ background: '#22c55e' }}>
+                    <button onClick={() => approveBadge(b.user_id || 'unknown', b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold text-white hover:opacity-88 transition-opacity" style={{ background: '#22c55e' }}>
                       <i className="fa-solid fa-check" /> Approve
                     </button>
-                    <button onClick={() => rejectBadge(userId, b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors">
+                    <button onClick={() => rejectBadge(b.user_id || 'unknown', b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors">
                       <i className="fa-solid fa-xmark" /> Reject
                     </button>
                   </div>
@@ -214,17 +224,15 @@ export default function AdminPage() {
 }
 
 function ReportCard({ report, onDelete, onBan, onDismiss }: any) {
-  const userId = report.user_id || report.post?.user_id || report.user?.id
-  
   return (
     <div className="bg-surf border border-bdr rounded-[9px] p-[13px] mb-[8px]">
       <div className="flex items-center gap-[9px] mb-[9px]">
         <div className="w-[30px] h-[30px] rounded-full flex items-center justify-center font-bold text-white text-[11px] flex-shrink-0" style={{ background: 'var(--acc)' }}>
-          {report.reporter?.full_name?.slice(0, 2).toUpperCase()}
+          R
         </div>
         <div>
-          <div className="text-[12.5px] font-semibold">Post by user</div>
-          <div className="text-[11px] text-txt2">{report.count || 1} report(s) · {report.reason}</div>
+          <div className="text-[12.5px] font-semibold">Report</div>
+          <div className="text-[11px] text-txt2">{report.count || 1} report(s) · {report.reason || 'No reason'}</div>
         </div>
         {report.post?.type && <Badge type={report.post.type} />}
       </div>
@@ -237,7 +245,7 @@ function ReportCard({ report, onDelete, onBan, onDismiss }: any) {
         <button onClick={() => onDelete(report.post_id)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold text-red-500 bg-red-500/8 border border-red-500/15 hover:bg-red-500/15 transition-colors">
           <i className="fa-solid fa-trash" /> Delete
         </button>
-        <button onClick={() => onBan(userId)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr text-red-500 hover:border-bdr2 transition-colors">
+        <button onClick={() => onBan(report.user_id || report.post?.user_id)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr text-red-500 hover:border-bdr2 transition-colors">
           <i className="fa-solid fa-ban" /> Ban
         </button>
         <button onClick={() => onDismiss(report.id)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors ml-auto">
