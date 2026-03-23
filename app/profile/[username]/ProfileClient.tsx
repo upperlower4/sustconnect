@@ -27,18 +27,20 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
   const isOwnProfile = me?.id === profileUser.id
   const showPrem = me && me.gender !== profileUser.gender
 
-  // ✅ FIX: Friend/Prem status এখন page load এ Supabase থেকে check হবে
   const [friendStatus, setFriendStatus] = useState<string | null>(null)
   const [premStatus, setPremStatus] = useState<string | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
 
   useEffect(() => {
-    if (!me || isOwnProfile) { setStatusLoading(false); return }
+    if (!me || isOwnProfile) {
+      setStatusLoading(false)
+      return
+    }
 
     async function loadFriendStatus() {
       const { data } = await supabase
         .from('friendships')
-        .select('status, type')
+        .select('status, type, user_id, friend_id')
         .or(
           `and(user_id.eq.${me!.id},friend_id.eq.${profileUser.id}),and(user_id.eq.${profileUser.id},friend_id.eq.${me!.id})`
         )
@@ -57,12 +59,30 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
 
   async function sendFriendRequest() {
     if (!me) { toast('Friend Request করতে Sign Up করো!', { icon: '🔒' }); return }
-    if (friendStatus) { toast.error('Already sent!'); return }
+    if (friendStatus) return
+
     try {
       const { error } = await supabase.from('friendships').insert({
-        user_id: me.id, friend_id: profileUser.id, type: 'friend', status: 'pending'
+        user_id: me.id,
+        friend_id: profileUser.id,
+        type: 'friend',
+        status: 'pending'
       })
-      if (error) { if (error.code === '23505') { toast.error('Already sent!'); return } throw error }
+      if (error) {
+        if (error.code === '23505') { toast.error('Already sent!'); return }
+        throw error
+      }
+
+      // ✅ FIX: notification পাঠাও
+      await supabase.from('notifications').insert({
+        user_id: profileUser.id,
+        type: 'friend_request',
+        title: 'Friend Request',
+        body: `<b>${me.full_name}</b> তোমাকে friend request পাঠিয়েছে।`,
+        link: `/profile/${me.username}`,
+        actor_id: me.id,
+      })
+
       setFriendStatus('pending')
       toast.success('🤝 Friend Request পাঠানো হয়েছে!')
     } catch (err: any) { toast.error(err.message) }
@@ -70,22 +90,38 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
 
   async function sendPremRequest() {
     if (!me) { toast('Prem Request করতে Sign Up করো!', { icon: '🔒' }); return }
-    if (premStatus) { toast.error('Already sent!'); return }
+    if (premStatus) return
+
     try {
       const { error } = await supabase.from('friendships').insert({
-        user_id: me.id, friend_id: profileUser.id, type: 'prem', status: 'pending'
+        user_id: me.id,
+        friend_id: profileUser.id,
+        type: 'prem',
+        status: 'pending'
       })
-      if (error) { if (error.code === '23505') { toast.error('Already sent!'); return } throw error }
+      if (error) {
+        if (error.code === '23505') { toast.error('Already sent!'); return }
+        throw error
+      }
+
+      // ✅ FIX: notification পাঠাও
+      await supabase.from('notifications').insert({
+        user_id: profileUser.id,
+        type: 'prem_request',
+        title: 'Prem Request 💕',
+        body: `<b>${me.full_name}</b> তোমাকে prem request পাঠিয়েছে।`,
+        link: `/profile/${me.username}`,
+        actor_id: me.id,
+      })
+
       setPremStatus('pending')
       toast.success('💕 Prem Request পাঠানো হয়েছে!')
     } catch (err: any) { toast.error(err.message) }
   }
 
-  // ✅ FIX: Profile থেকে DM open হবে
   async function startDM() {
     if (!me) { toast('Message করতে Sign Up করো!', { icon: '🔒' }); return }
     try {
-      // আগে থেকে thread আছে কিনা check করো
       const { data: existing } = await supabase
         .from('dm_threads')
         .select('id')
@@ -93,14 +129,12 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
         .single()
 
       if (!existing) {
-        // নতুন thread বানাও
         await supabase.from('dm_threads').insert({
           participant_ids: [me.id, profileUser.id],
           is_request: friendStatus === 'accepted' ? false : true
         })
       }
 
-      // ✅ Desktop এ side DM open করো, mobile এ DM page এ যাও
       if (window.innerWidth >= 768) {
         toggleDM()
       } else {
@@ -109,12 +143,41 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
     } catch (err: any) { toast.error(err.message) }
   }
 
-  // Friend button text কী দেখাবে
-  function getFriendButtonText() {
-    if (statusLoading) return <i className="fa-solid fa-spinner fa-spin" />
-    if (friendStatus === 'accepted') return <><i className="fa-solid fa-user-check" /> Friends</>
-    if (friendStatus === 'pending') return <><i className="fa-solid fa-clock" /> Pending</>
-    return <><i className="fa-solid fa-user-plus" /> Add Friend</>
+  // ✅ FIX: status অনুযায়ী সঠিক button দেখাবে
+  function getFriendButton() {
+    if (statusLoading) {
+      return (
+        <button disabled
+          className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white opacity-60"
+          style={{ background: 'var(--acc)' }}>
+          <i className="fa-solid fa-spinner fa-spin" />
+        </button>
+      )
+    }
+    if (friendStatus === 'accepted') {
+      return (
+        <button disabled
+          className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white"
+          style={{ background: '#22c55e' }}>
+          <i className="fa-solid fa-user-check" /> Friends
+        </button>
+      )
+    }
+    if (friendStatus === 'pending') {
+      return (
+        <button disabled
+          className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold bg-surf2 border border-bdr text-txt2">
+          <i className="fa-solid fa-clock" /> Pending
+        </button>
+      )
+    }
+    return (
+      <button onClick={sendFriendRequest}
+        className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white hover:opacity-88 transition-opacity"
+        style={{ background: 'var(--acc)' }}>
+        <i className="fa-solid fa-user-plus" /> Add Friend
+      </button>
+    )
   }
 
   return (
@@ -122,12 +185,8 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
       <TopBar />
       <div className="pt-[44px]">
         <AppShell>
-          {/* ✅ Cover photo section সরানো হয়েছে */}
-
-          {/* Profile info */}
           <div className="px-[18px] pt-[18px] pb-[14px] bg-surf border-b border-bdr">
             <div className="flex items-end justify-between mb-[9px]">
-              {/* Avatar */}
               <div className="relative">
                 <div
                   className="w-[76px] h-[76px] rounded-full border-[3px] border-surf cursor-pointer hover:opacity-88 transition-opacity overflow-hidden flex items-center justify-center font-bold text-white text-[22px]"
@@ -140,11 +199,9 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-[5px] items-center">
                 {!isOwnProfile && (
                   <>
-                    {/* ✅ DM button এখন কাজ করবে */}
                     <button onClick={startDM}
                       className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors">
                       <i className="fa-regular fa-comment" />
@@ -159,17 +216,10 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
                       </button>
                     )}
 
-                    {/* ✅ Friend button status অনুযায়ী দেখাবে */}
-                    <button onClick={sendFriendRequest}
-                      disabled={!!friendStatus || statusLoading}
-                      className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white hover:opacity-88 transition-opacity disabled:opacity-60"
-                      style={{ background: friendStatus === 'accepted' ? '#22c55e' : 'var(--acc)' }}>
-                      {getFriendButtonText()}
-                    </button>
+                    {getFriendButton()}
                   </>
                 )}
 
-                {/* ✅ Edit Profile — settings এ নিয়ে যাবে */}
                 {isOwnProfile && (
                   <Link href="/settings"
                     className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors">
@@ -179,19 +229,16 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
               </div>
             </div>
 
-            {/* Name */}
             <div className="text-[17px] font-bold flex items-center gap-[5px]">
               {profileUser.full_name}
               {profileUser.is_verified && <i className="fa-solid fa-circle-check text-[#60a5fa] text-[15px]" />}
             </div>
             <div className="text-[12.5px] text-txt2 mt-[2px]">@{profileUser.username}</div>
 
-            {/* Bio */}
             {profileUser.bio && (
               <div className="text-[12.5px] text-txt mt-[6px]">{profileUser.bio}</div>
             )}
 
-            {/* Meta */}
             <div className="flex gap-[12px] mt-[7px] flex-wrap">
               <MetaItem icon="fa-solid fa-building-columns" text={profileUser.department} />
               <MetaItem icon="fa-solid fa-calendar-days" text={profileUser.session} />
@@ -200,7 +247,6 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
               <MetaItem icon="fa-regular fa-calendar" text={`DOB: ${formatDOB(profileUser.dob_day, profileUser.dob_month, profileUser.dob_year)}`} />
             </div>
 
-            {/* Social links */}
             {(profileUser.facebook_url || profileUser.instagram_url) && (
               <div className="flex gap-[8px] mt-[8px]">
                 {profileUser.facebook_url && (
@@ -218,14 +264,12 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
               </div>
             )}
 
-            {/* Stats */}
             <div className="flex gap-[18px] mt-[10px]">
               <Stat n={profileUser.post_count || 0} label="Posts" />
               <Stat n={profileUser.friend_count || 0} label="Friends" />
             </div>
           </div>
 
-          {/* Tabs */}
           <div className="flex bg-surf border-b border-bdr sticky top-[44px] z-10">
             {TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
@@ -235,7 +279,6 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
             ))}
           </div>
 
-          {/* Posts */}
           <div className="p-[10px]">
             {activeTab === 'Posts' && initialPosts.map(post => (
               <PostCard key={post.id} post={post} />

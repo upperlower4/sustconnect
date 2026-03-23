@@ -14,7 +14,8 @@ export default function PostCard({ post }: { post: Post }) {
   const { user } = useAuthStore()
   const [isLoved, setIsLoved] = useState<boolean>(false)
   const [loveCount, setLoveCount] = useState(post.love_count)
-  const [viewCount, setViewCount] = useState(post.view_count)
+  // ✅ FIX: view count সঠিকভাবে initialize হচ্ছে
+  const [viewCount, setViewCount] = useState(post.view_count ?? 0)
   const [loveAnim, setLoveAnim] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [lbSrc, setLbSrc] = useState<string | null>(null)
@@ -24,7 +25,6 @@ export default function PostCard({ post }: { post: Post }) {
   useEffect(() => {
     setMounted(true)
 
-    // ✅ FIX: Love state Supabase থেকে load করা
     async function loadLoveState() {
       if (user) {
         const { data } = await supabase
@@ -38,7 +38,7 @@ export default function PostCard({ post }: { post: Post }) {
     }
     loadLoveState()
 
-    // ✅ FIX: View count 2 সেকেন্ড পর update হবে এবং frontend এও দেখাবে
+    // ✅ FIX: view count 2 সেকেন্ড পর update হবে এবং দেখাবে
     const timer = setTimeout(async () => {
       try {
         const res = await fetch('/api/views', {
@@ -47,6 +47,7 @@ export default function PostCard({ post }: { post: Post }) {
           body: JSON.stringify({ postId: post.id }),
         })
         const data = await res.json()
+        // ✅ শুধু নতুন view হলে count বাড়াবে
         if (data.ok) setViewCount(v => v + 1)
       } catch {}
     }, 2000)
@@ -60,10 +61,10 @@ export default function PostCard({ post }: { post: Post }) {
       return
     }
 
-    // ✅ FIX: Optimistic update — আগে UI update করো, তারপর DB
     const newLoved = !isLoved
+    // ✅ FIX: আগে UI update করো — counter সাথে সাথে বদলাবে
     setIsLoved(newLoved)
-    setLoveCount(c => newLoved ? c + 1 : c - 1) // ✅ সাথে সাথে counter update হবে
+    setLoveCount(c => newLoved ? c + 1 : c - 1)
 
     if (newLoved) {
       setLoveAnim(true)
@@ -73,18 +74,32 @@ export default function PostCard({ post }: { post: Post }) {
     try {
       if (newLoved) {
         await supabase.from('post_loves').insert({ post_id: post.id, user_id: user.id })
+
+        // ✅ FIX: Love করলে post owner কে notification পাঠাও
+        // নিজের post এ love করলে notification যাবে না
+        if (post.user_id !== user.id && !post.is_anonymous) {
+          await supabase.from('notifications').insert({
+            user_id: post.user_id,
+            type: 'post_loved',
+            title: 'Post Loved ❤️',
+            body: `<b>${user.full_name}</b> তোমার post টি love করেছে।`,
+            link: `/post/${post.id}`,
+            actor_id: user.id,
+          })
+        }
       } else {
-        await supabase.from('post_loves').delete().eq('post_id', post.id).eq('user_id', user.id)
+        await supabase.from('post_loves').delete()
+          .eq('post_id', post.id)
+          .eq('user_id', user.id)
       }
-    } catch (err) {
-      // ✅ DB error হলে UI আবার আগের state এ ফিরিয়ে দাও
+    } catch {
+      // ✅ Error হলে UI আগের state এ ফিরে যাবে
       setIsLoved(!newLoved)
       setLoveCount(c => newLoved ? c - 1 : c + 1)
       toast.error('Something went wrong!')
     }
   }
 
-  // ✅ FIX: Share button কাজ করবে
   async function handleShare() {
     const url = `${window.location.origin}/post/${post.id}`
     try {
@@ -120,7 +135,8 @@ export default function PostCard({ post }: { post: Post }) {
 
         <div className="flex items-center gap-[9px] px-[13px] pt-[11px] pb-[7px]">
           {isConf
-            ? <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg,#4a044e,#7c1560)' }}>
+            ? <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg,#4a044e,#7c1560)' }}>
                 <i className="fa-solid fa-mask text-white text-[13px]" />
               </div>
             : <Avatar user={post.user} size="md" />}
@@ -171,11 +187,11 @@ export default function PostCard({ post }: { post: Post }) {
         )}
 
         <div className="flex border-t" style={{ borderColor: 'var(--bdr)' }}>
-          {/* ✅ Love button — counter সাথে সাথে update হবে */}
           <button onClick={handleLove}
             className="flex-1 flex items-center justify-center gap-[5px] py-[10px] text-[12px] font-medium transition-colors"
             style={{ color: heartColor }}>
             <i className={`${heartIcon} ${loveAnim ? 'animate-heart' : ''}`} />
+            {/* ✅ love count সাথে সাথে update হবে */}
             <span>{loveCount}</span>
           </button>
 
@@ -186,14 +202,13 @@ export default function PostCard({ post }: { post: Post }) {
             <span>{post.comment_count}</span>
           </Link>
 
-          {/* ✅ Share button — এখন কাজ করবে */}
           <button onClick={handleShare}
             className="flex-1 flex items-center justify-center gap-[5px] py-[10px] text-[12px] font-medium"
             style={{ color: 'var(--txt2)' }}>
             <i className="fa-solid fa-share-nodes" />
           </button>
 
-          {/* ✅ View count — সঠিকভাবে দেখাবে */}
+          {/* ✅ view count এখন সঠিকভাবে দেখাবে */}
           <div className="flex items-center justify-center gap-[5px] py-[10px] px-3 text-[11px]"
             style={{ color: 'var(--txt3)' }}>
             <i className="fa-regular fa-eye" />
