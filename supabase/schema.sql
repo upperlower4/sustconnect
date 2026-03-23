@@ -250,6 +250,18 @@ CREATE POLICY "push_own"     ON push_subscriptions FOR ALL USING (auth.uid() = u
 CREATE POLICY "crushes_read" ON crushes FOR SELECT USING (auth.uid() IN (sender_id, receiver_id));
 CREATE POLICY "crushes_write" ON crushes FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
+-- ADMIN TABLES POLICIES
+ALTER TABLE reports DISABLE ROW LEVEL SECURITY;
+ALTER TABLE badge_requests DISABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "reports_read"   ON reports FOR SELECT USING (TRUE);
+CREATE POLICY "reports_write"  ON reports FOR INSERT WITH CHECK (TRUE);
+CREATE POLICY "reports_update" ON reports FOR UPDATE USING (TRUE);
+
+CREATE POLICY "badge_requests_read"   ON badge_requests FOR SELECT USING (TRUE);
+CREATE POLICY "badge_requests_write"  ON badge_requests FOR INSERT WITH CHECK (TRUE);
+CREATE POLICY "badge_requests_update" ON badge_requests FOR UPDATE USING (TRUE);
+
 -- REALTIME
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;

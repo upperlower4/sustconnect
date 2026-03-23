@@ -49,8 +49,8 @@ export default function AdminPage() {
       supabase.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('badge_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('reports').select(`*, reporter:users(full_name,username), post:posts(id,type,content,user_id)`).eq('status', 'pending').order('created_at', { ascending: false }).limit(20),
-      supabase.from('badge_requests').select(`*, user:users(id,full_name,username,avatar_url,post_count,friend_count)`).eq('status', 'pending').order('created_at', { ascending: false }),
+      supabase.from('reports').select(`*, reporter:users!inner(full_name,username), post:posts!inner(id,type,content,user_id)`).eq('status', 'pending').order('created_at', { ascending: false }).limit(20),
+      supabase.from('badge_requests').select(`*, user:users!inner(id,full_name,username,avatar_url,post_count,friend_count)`).eq('status', 'pending').order('created_at', { ascending: false }),
     ])
     setStats({ users: uCount || 0, posts: pCount || 0, reports: rCount || 0, badges: bCount || 0 })
     setReports(rData || [])
@@ -299,7 +299,7 @@ function PostsPanel({ onPin, onDelete }: any) {
     setLoading(true)
     const { data } = await supabase
       .from('posts')
-      .select(`*, user:users(full_name, username)`)
+      .select(`*, user:users!inner(full_name, username)`)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(50)
