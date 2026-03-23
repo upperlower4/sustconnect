@@ -170,13 +170,17 @@ export default function AdminPage() {
             <>
               <div className="text-[17px] font-bold mb-[14px]">Badge Requests ({stats.badges})</div>
               {badgeReqs.length === 0 && !loading && <Empty icon="fa-solid fa-circle-check" text="No pending badge requests" />}
-              {badgeReqs.map(b => (
+              {badgeReqs.map(b => {
+                const userId = b.user?.id || b.user_id
+                if (!userId) return null
+                
+                return (
                 <div key={b.id} className="bg-surf border border-bdr rounded-[9px] p-[13px] mb-[8px]">
                   <div className="flex items-center gap-[9px] mb-[10px]">
                     <Avatar user={b.user} size="md" />
                     <div>
-                      <div className="text-[13px] font-semibold">{b.user?.full_name}</div>
-                      <div className="text-[11px] text-txt2">@{b.user?.username} · {timeAgo(b.created_at)}</div>
+                      <div className="text-[13px] font-semibold">{b.user?.full_name || 'Unknown User'}</div>
+                      <div className="text-[11px] text-txt2">@{b.user?.username || 'unknown'} · {timeAgo(b.created_at)}</div>
                     </div>
                   </div>
                   <div className="text-[11.5px] text-txt2 mb-[10px] flex gap-[14px]">
@@ -184,15 +188,16 @@ export default function AdminPage() {
                     <span><b className="text-txt">{b.user?.friend_count || 0}</b> friends</span>
                   </div>
                   <div className="flex gap-[6px]">
-                    <button onClick={() => approveBadge(b.user.id, b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold text-white hover:opacity-88 transition-opacity" style={{ background: '#22c55e' }}>
+                    <button onClick={() => approveBadge(userId, b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold text-white hover:opacity-88 transition-opacity" style={{ background: '#22c55e' }}>
                       <i className="fa-solid fa-check" /> Approve
                     </button>
-                    <button onClick={() => rejectBadge(b.user.id, b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors">
+                    <button onClick={() => rejectBadge(userId, b.id)} className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors">
                       <i className="fa-solid fa-xmark" /> Reject
                     </button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </>
           )}
 
@@ -270,20 +275,24 @@ function UsersPanel() {
       </div>
       {loading && <div className="text-center py-[20px] text-txt3"><i className="fa-solid fa-spinner fa-spin" /></div>}
       <div className="space-y-[1px]">
-        {users.map(u => (
-          <div key={u.id} className="flex items-center gap-[9px] bg-surf border border-bdr rounded-[8px] px-[12px] py-[9px]">
-            <Avatar user={u} size="sm" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[12.5px] font-semibold flex items-center gap-[5px]">
-                {u.full_name}
-                {u.is_verified && <i className="fa-solid fa-circle-check text-[#60a5fa] text-[10px]" />}
-                {u.is_admin && <span className="text-[9px] font-bold px-[5px] py-[1px] rounded-full text-white" style={{ background: 'var(--acc)' }}>ADMIN</span>}
-              </div>
-              <div className="text-[11px] text-txt2">@{u.username} · {u.department}</div>
-            </div>
-            <div className="text-[11px] text-txt3">{new Date(u.created_at).toLocaleDateString()}</div>
-          </div>
-        ))}
+        {users.map(u => {
+                if (!u?.id) return null
+                
+                return (
+                <div key={u.id} className="flex items-center gap-[9px] bg-surf border border-bdr rounded-[8px] px-[12px] py-[9px]">
+                  <Avatar user={u} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12.5px] font-semibold flex items-center gap-[5px]">
+                      {u.full_name || 'Unknown User'}
+                      {u.is_verified && <i className="fa-solid fa-circle-check text-[#60a5fa] text-[10px]" />}
+                      {u.is_admin && <span className="text-[9px] font-bold px-[5px] py-[1px] rounded-full text-white" style={{ background: 'var(--acc)' }}>ADMIN</span>}
+                    </div>
+                    <div className="text-[11px] text-txt2">@{u.username || 'unknown'} · {u.department || 'Unknown'}</div>
+                  </div>
+                  <div className="text-[11px] text-txt3">{new Date(u.created_at).toLocaleDateString()}</div>
+                </div>
+                )
+              })}
       </div>
     </>
   )
@@ -312,26 +321,31 @@ function PostsPanel({ onPin, onDelete }: any) {
       <div className="text-[17px] font-bold mb-[14px]">All Posts</div>
       {loading && <div className="text-center py-[20px] text-txt3"><i className="fa-solid fa-spinner fa-spin" /></div>}
       <div className="space-y-[8px]">
-        {posts.map(p => (
-          <div key={p.id} className="bg-surf border border-bdr rounded-[9px] p-[12px]">
-            <div className="flex items-center gap-[8px] mb-[7px]">
-              <Badge type={p.type} />
-              <span className="text-[12px] font-semibold">{p.user?.full_name}</span>
-              <span className="text-[11px] text-txt3 ml-auto">{timeAgo(p.created_at)}</span>
-            </div>
-            <div className="text-[12.5px] text-txt2 line-clamp-2 mb-[9px]">{p.content}</div>
-            <div className="flex gap-[5px]">
-              <button onClick={() => { onPin(p.id, !p.is_pinned); setPosts(ps => ps.map(x => x.id === p.id ? { ...x, is_pinned: !x.is_pinned } : x)) }}
-                className={`flex items-center gap-[4px] px-[9px] py-[4px] rounded-[6px] text-[11px] font-semibold border transition-colors ${p.is_pinned ? 'bg-[rgba(232,24,122,0.1)] text-[var(--acc)] border-[rgba(232,24,122,0.2)]' : 'bg-surf2 border-bdr hover:border-bdr2'}`}>
-                <i className="fa-solid fa-thumbtack" /> {p.is_pinned ? 'Unpin' : 'Pin'}
-              </button>
-              <button onClick={() => { onDelete(p.id); setPosts(ps => ps.filter(x => x.id !== p.id)) }}
-                className="flex items-center gap-[4px] px-[9px] py-[4px] rounded-[6px] text-[11px] font-semibold text-red-500 bg-red-500/8 border border-red-500/15 hover:bg-red-500/15 transition-colors">
-                <i className="fa-solid fa-trash" /> Delete
-              </button>
-            </div>
-          </div>
-        ))}
+        {posts.map(p => {
+                const userId = p.user?.id || p.user_id
+                if (!userId) return null
+                
+                return (
+                <div key={p.id} className="bg-surf border border-bdr rounded-[9px] p-[12px]">
+                  <div className="flex items-center gap-[8px] mb-[7px]">
+                    <Badge type={p.type} />
+                    <span className="text-[12px] font-semibold">{p.user?.full_name || 'Unknown User'}</span>
+                    <span className="text-[11px] text-txt3 ml-auto">{timeAgo(p.created_at)}</span>
+                  </div>
+                  <div className="text-[12.5px] text-txt2 line-clamp-2 mb-[9px]">{p.content}</div>
+                  <div className="flex gap-[5px]">
+                    <button onClick={() => { onPin(p.id, !p.is_pinned); setPosts(ps => ps.map(x => x.id === p.id ? { ...x, is_pinned: !p.is_pinned } : x)) }}
+                      className={`flex items-center gap-[4px] px-[9px] py-[4px] rounded-[6px] text-[11px] font-semibold border transition-colors ${p.is_pinned ? 'bg-[rgba(232,24,122,0.1)] text-[var(--acc)] border-[rgba(232,24,122,0.2)]' : 'bg-surf2 border-bdr hover:border-bdr2'}`}>
+                      <i className="fa-solid fa-thumbtack" /> {p.is_pinned ? 'Unpin' : 'Pin'}
+                    </button>
+                    <button onClick={() => { onDelete(p.id); setPosts(ps => ps.filter(x => x.id !== p.id)) }}
+                      className="flex items-center gap-[4px] px-[9px] py-[4px] rounded-[6px] text-[11px] font-semibold text-red-500 bg-red-500/8 border border-red-500/15 hover:bg-red-500/15 transition-colors">
+                      <i className="fa-solid fa-trash" /> Delete
+                    </button>
+                  </div>
+                </div>
+                )
+              })}
       </div>
     </>
   )
