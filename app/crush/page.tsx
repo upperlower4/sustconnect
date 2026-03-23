@@ -24,9 +24,16 @@ export default function CrushPage() {
 
   async function loadCrushStats() {
     const [received, sent, matched] = await Promise.all([
-      supabase.from('crushes').select('id', { count: 'exact' }).eq('receiver_id', user!.id).eq('is_matched', false),
-      supabase.from('crushes').select('id', { count: 'exact' }).eq('sender_id', user!.id),
-      supabase.from('crushes').select('id', { count: 'exact' }).eq('receiver_id', user!.id).eq('is_matched', true),
+      supabase.from('crushes').select('id', { count: 'exact' })
+        .eq('receiver_id', user!.id)
+        .eq('is_matched', false),
+      supabase.from('crushes').select('id', { count: 'exact' })
+        .eq('sender_id', user!.id),
+      // ✅ FIX: আগে শুধু receiver_id দিয়ে check করত
+      // এখন sender বা receiver যেকোনো একজন হলেই match count এ দেখাবে
+      supabase.from('crushes').select('id', { count: 'exact' })
+        .or(`sender_id.eq.${user!.id},receiver_id.eq.${user!.id}`)
+        .eq('is_matched', true),
     ])
     setCrushCount(received.count || 0)
     setSentCount(sent.count || 0)
@@ -63,7 +70,6 @@ export default function CrushPage() {
       <div className="pt-[44px]">
         <AppShell>
           <div className="max-w-[440px] mx-auto p-[18px]">
-            {/* Counter card */}
             <div className="bg-surf border border-bdr rounded-[11px] p-[24px] text-center mb-[9px]">
               <div className="text-[10.5px] font-bold text-txt3 tracking-[0.5px] uppercase mb-[12px]">Secret Admirers</div>
               <div className="text-[52px] font-black leading-none text-txt">{crushCount}</div>
@@ -79,7 +85,6 @@ export default function CrushPage() {
               </div>
             </div>
 
-            {/* Send crush */}
             <div className="bg-surf border border-bdr rounded-[11px] p-[18px] mb-[9px]">
               <h3 className="text-[14px] font-bold mb-[3px] flex items-center gap-[5px]">
                 <i className="fa-solid fa-heart" style={{ color: 'var(--acc)' }} /> Send Secret Crush
@@ -99,7 +104,6 @@ export default function CrushPage() {
               </button>
             </div>
 
-            {/* How it works */}
             <div className="bg-surf border border-bdr rounded-[11px] p-[15px]">
               <div className="text-[12.5px] font-bold mb-[9px]">How it works</div>
               {[

@@ -9,7 +9,6 @@ import BottomNav from '@/components/layout/BottomNav'
 import Avatar from '@/components/ui/Avatar'
 import { timeAgo } from '@/lib/utils'
 
-// Mobile-only full-screen DM page
 export default function DMPage() {
   const { user } = useAuthStore()
   const router = useRouter()
@@ -27,10 +26,23 @@ export default function DMPage() {
   async function loadThreads() {
     const { data } = await supabase
       .from('dm_threads')
-      .select(`*`)
+      .select('*')
       .contains('participant_ids', [user!.id])
       .order('last_message_at', { ascending: false })
-    setThreads(data || [])
+
+    // ✅ FIX: আগে other_user কখনো fetch হত না
+    // participant_ids array থেকে অন্যজনের id বের করে তার info নিয়ে আসছি
+    const threadsWithUsers = await Promise.all((data || []).map(async (t: any) => {
+      const otherUserId = t.participant_ids.find((id: string) => id !== user!.id)
+      const { data: otherUser } = await supabase
+        .from('users')
+        .select('id, full_name, username, avatar_url')
+        .eq('id', otherUserId)
+        .single()
+      return { ...t, other_user: otherUser }
+    }))
+
+    setThreads(threadsWithUsers)
   }
 
   async function openThread(thread: DMThread) {
@@ -48,7 +60,25 @@ export default function DMPage() {
     if (!input.trim() || !activeThread || !user) return
     const text = input.trim()
     setInput('')
-    await supabase.from('messages').insert({ thread_id: activeThread.id, sender_id: user.id, content: text, is_read: false })
+    await supabase.from('messages').insert({
+      thread_id: activeThread.id,
+      sender_id: user.id,
+      content: text,
+      is_read: false
+    })
+    await supabase.from('dm_threads').update({
+      last_message: text,
+      last_message_at: new Date().toISOString()
+    }).eq('id', activeThread.id)
+
+    // message পাঠানোর পর list refresh করো
+    const { data } = await supabase
+      .from('messages')
+      .select(`*, sender:users(id,full_name,username,avatar_url)`)
+      .eq('thread_id', activeThread.id)
+      .order('created_at', { ascending: true })
+    setMessages(data || [])
+    setTimeout(() => msgsRef.current?.scrollTo(0, msgsRef.current.scrollHeight), 100)
   }
 
   return (
@@ -93,7 +123,6 @@ export default function DMPage() {
                 </div>
               ))}
 
-              {/* Message Requests */}
               {threads.filter(t => t.is_request).length > 0 && (
                 <>
                   <div className="px-[13px] py-[8px] text-[10px] font-bold text-txt3 uppercase tracking-widest border-t border-bdr mt-[5px]">

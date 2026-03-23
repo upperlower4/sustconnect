@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import ThemeProvider from '@/components/layout/ThemeProvider' // ✅ নতুন
+import PushInit from '@/components/PushInit' // ✅ নতুন
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://sustconnect.vercel.app'),
@@ -47,18 +49,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         }} />
       </head>
       <body>
-        {children}
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            style: {
-              background: 'var(--surf)',
-              color: 'var(--txt)',
-              border: '1px solid var(--bdr)',
-              fontSize: '13px',
-            },
-          }}
-        />
+        <ThemeProvider> {/* ✅ এটা আগে ছিল না */}
+          <PushInit /> {/* ✅ এটা আগে ছিল না */}
+          {children}
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              style: {
+                background: 'var(--surf)',
+                color: 'var(--txt)',
+                border: '1px solid var(--bdr)',
+                fontSize: '13px',
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -10,7 +10,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import PostCard from '@/components/post/PostCard'
 import Avatar from '@/components/ui/Avatar'
 import { supabase } from '@/lib/supabase'
-import toast from 'react-hot-toast'
+import toast from 'react-hot-toast' // ✅ এটা আগে ছিল না
 
 interface Props { post: Post; initialComments: Comment[] }
 
@@ -63,7 +63,6 @@ export default function PostDetailClient({ post, initialComments }: Props) {
 
             <PostCard post={post} />
 
-            {/* Comments section */}
             <div className="bg-surf border border-bdr rounded-[11px]">
               <div className="p-[13px]">
                 <div className="text-[13px] font-bold mb-[13px]">
@@ -71,7 +70,6 @@ export default function PostDetailClient({ post, initialComments }: Props) {
                   Comments ({post.comment_count})
                 </div>
 
-                {/* Reply to indicator */}
                 {replyTo && (
                   <div className="flex items-center gap-[8px] mb-[8px] text-[12px] text-txt2 bg-surf2 rounded-[7px] px-[10px] py-[6px]">
                     <i className="fa-solid fa-reply" style={{ color: 'var(--acc)' }} />
@@ -82,7 +80,6 @@ export default function PostDetailClient({ post, initialComments }: Props) {
                   </div>
                 )}
 
-                {/* Comment input */}
                 <div className="flex gap-[8px] items-start mb-[14px]">
                   <Avatar user={user} size="sm" />
                   <textarea
@@ -101,7 +98,6 @@ export default function PostDetailClient({ post, initialComments }: Props) {
                   </button>
                 </div>
 
-                {/* Comments list */}
                 {comments.map(comment => (
                   <div key={comment.id}>
                     <CommentItem comment={comment} onReply={setReplyTo} />
