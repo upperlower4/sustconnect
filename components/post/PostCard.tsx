@@ -23,8 +23,8 @@ export default function PostCard({ post }: { post: Post }) {
 
   useEffect(() => {
     setMounted(true)
-    
-    // Load love state from Supabase
+
+    // ✅ FIX: Love state Supabase থেকে load করা
     async function loadLoveState() {
       if (user) {
         const { data } = await supabase
@@ -38,6 +38,7 @@ export default function PostCard({ post }: { post: Post }) {
     }
     loadLoveState()
 
+    // ✅ FIX: View count 2 সেকেন্ড পর update হবে এবং frontend এও দেখাবে
     const timer = setTimeout(async () => {
       try {
         const res = await fetch('/api/views', {
@@ -58,30 +59,40 @@ export default function PostCard({ post }: { post: Post }) {
       toast('❤️ Love করতে Sign Up করো!', { icon: '🔒' })
       return
     }
+
+    // ✅ FIX: Optimistic update — আগে UI update করো, তারপর DB
     const newLoved = !isLoved
     setIsLoved(newLoved)
-    setLoveCount(c => newLoved ? c + 1 : c - 1)
+    setLoveCount(c => newLoved ? c + 1 : c - 1) // ✅ সাথে সাথে counter update হবে
+
     if (newLoved) {
       setLoveAnim(true)
       setTimeout(() => setLoveAnim(false), 400)
     }
-    try {
-      const stored = localStorage.getItem('sust-loves')
-      const parsed = stored ? JSON.parse(stored) : { state: { loved: [] } }
-      let lovedList: string[] = parsed?.state?.loved || []
-      if (newLoved) {
-        if (!lovedList.includes(post.id)) lovedList = [...lovedList, post.id]
-      } else {
-        lovedList = lovedList.filter((id: string) => id !== post.id)
-      }
-      parsed.state.loved = lovedList
-      localStorage.setItem('sust-loves', JSON.stringify(parsed))
-    } catch {}
+
     try {
       if (newLoved) {
         await supabase.from('post_loves').insert({ post_id: post.id, user_id: user.id })
       } else {
         await supabase.from('post_loves').delete().eq('post_id', post.id).eq('user_id', user.id)
+      }
+    } catch (err) {
+      // ✅ DB error হলে UI আবার আগের state এ ফিরিয়ে দাও
+      setIsLoved(!newLoved)
+      setLoveCount(c => newLoved ? c - 1 : c + 1)
+      toast.error('Something went wrong!')
+    }
+  }
+
+  // ✅ FIX: Share button কাজ করবে
+  async function handleShare() {
+    const url = `${window.location.origin}/post/${post.id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'SUST Connect', text: post.content.slice(0, 100), url })
+      } else {
+        await navigator.clipboard.writeText(url)
+        toast.success('Link copied! 📋')
       }
     } catch {}
   }
@@ -160,10 +171,11 @@ export default function PostCard({ post }: { post: Post }) {
         )}
 
         <div className="flex border-t" style={{ borderColor: 'var(--bdr)' }}>
+          {/* ✅ Love button — counter সাথে সাথে update হবে */}
           <button onClick={handleLove}
             className="flex-1 flex items-center justify-center gap-[5px] py-[10px] text-[12px] font-medium transition-colors"
             style={{ color: heartColor }}>
-            <i className={`${heartIcon} ${loveAnim ? 'animate-bounce' : ''}`} />
+            <i className={`${heartIcon} ${loveAnim ? 'animate-heart' : ''}`} />
             <span>{loveCount}</span>
           </button>
 
@@ -174,11 +186,14 @@ export default function PostCard({ post }: { post: Post }) {
             <span>{post.comment_count}</span>
           </Link>
 
-          <button className="flex-1 flex items-center justify-center gap-[5px] py-[10px] text-[12px] font-medium"
+          {/* ✅ Share button — এখন কাজ করবে */}
+          <button onClick={handleShare}
+            className="flex-1 flex items-center justify-center gap-[5px] py-[10px] text-[12px] font-medium"
             style={{ color: 'var(--txt2)' }}>
             <i className="fa-solid fa-share-nodes" />
           </button>
 
+          {/* ✅ View count — সঠিকভাবে দেখাবে */}
           <div className="flex items-center justify-center gap-[5px] py-[10px] px-3 text-[11px]"
             style={{ color: 'var(--txt3)' }}>
             <i className="fa-regular fa-eye" />

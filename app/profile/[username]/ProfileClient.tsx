@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import type { User, Post } from '@/types'
-import { useAuthStore } from '@/lib/store'
+import { useAuthStore, useDMStore } from '@/lib/store'
 import { formatDOB } from '@/lib/utils'
 import AppShell from '@/components/layout/AppShell'
 import TopBar from '@/components/layout/TopBar'
@@ -11,6 +12,7 @@ import Avatar from '@/components/ui/Avatar'
 import Lightbox from '@/components/ui/Lightbox'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 const TABS = ['Posts', 'Jobs', 'Sells', 'Friends']
 
@@ -18,19 +20,48 @@ interface Props { profileUser: User; initialPosts: Post[] }
 
 export default function ProfileClient({ profileUser, initialPosts }: Props) {
   const { user: me } = useAuthStore()
+  const { toggle: toggleDM } = useDMStore()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState('Posts')
   const [lbOpen, setLbOpen] = useState(false)
   const isOwnProfile = me?.id === profileUser.id
   const showPrem = me && me.gender !== profileUser.gender
 
+  // ✅ FIX: Friend/Prem status এখন page load এ Supabase থেকে check হবে
   const [friendStatus, setFriendStatus] = useState<string | null>(null)
   const [premStatus, setPremStatus] = useState<string | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+
+  useEffect(() => {
+    if (!me || isOwnProfile) { setStatusLoading(false); return }
+
+    async function loadFriendStatus() {
+      const { data } = await supabase
+        .from('friendships')
+        .select('status, type')
+        .or(
+          `and(user_id.eq.${me!.id},friend_id.eq.${profileUser.id}),and(user_id.eq.${profileUser.id},friend_id.eq.${me!.id})`
+        )
+
+      if (data && data.length > 0) {
+        for (const f of data) {
+          if (f.type === 'friend') setFriendStatus(f.status)
+          if (f.type === 'prem') setPremStatus(f.status)
+        }
+      }
+      setStatusLoading(false)
+    }
+
+    loadFriendStatus()
+  }, [me, profileUser.id, isOwnProfile])
 
   async function sendFriendRequest() {
     if (!me) { toast('Friend Request করতে Sign Up করো!', { icon: '🔒' }); return }
-    if (friendStatus === 'pending') { toast.error('Already sent!'); return }
+    if (friendStatus) { toast.error('Already sent!'); return }
     try {
-      const { error } = await supabase.from('friendships').insert({ user_id: me.id, friend_id: profileUser.id, type: 'friend', status: 'pending' })
+      const { error } = await supabase.from('friendships').insert({
+        user_id: me.id, friend_id: profileUser.id, type: 'friend', status: 'pending'
+      })
       if (error) { if (error.code === '23505') { toast.error('Already sent!'); return } throw error }
       setFriendStatus('pending')
       toast.success('🤝 Friend Request পাঠানো হয়েছে!')
@@ -39,23 +70,51 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
 
   async function sendPremRequest() {
     if (!me) { toast('Prem Request করতে Sign Up করো!', { icon: '🔒' }); return }
-    if (premStatus === 'pending') { toast.error('Already sent!'); return }
+    if (premStatus) { toast.error('Already sent!'); return }
     try {
-      const { error } = await supabase.from('friendships').insert({ user_id: me.id, friend_id: profileUser.id, type: 'prem', status: 'pending' })
+      const { error } = await supabase.from('friendships').insert({
+        user_id: me.id, friend_id: profileUser.id, type: 'prem', status: 'pending'
+      })
       if (error) { if (error.code === '23505') { toast.error('Already sent!'); return } throw error }
       setPremStatus('pending')
       toast.success('💕 Prem Request পাঠানো হয়েছে!')
     } catch (err: any) { toast.error(err.message) }
   }
 
+  // ✅ FIX: Profile থেকে DM open হবে
   async function startDM() {
     if (!me) { toast('Message করতে Sign Up করো!', { icon: '🔒' }); return }
     try {
-      const { data: existing } = await supabase.from('dm_threads').select('id').contains('participant_ids', [me.id, profileUser.id]).single()
-      if (existing) { toast('DM already open!'); return }
-      await supabase.from('dm_threads').insert({ participant_ids: [me.id, profileUser.id] })
-      toast.success('💬 DM খোলা হয়েছে!')
+      // আগে থেকে thread আছে কিনা check করো
+      const { data: existing } = await supabase
+        .from('dm_threads')
+        .select('id')
+        .contains('participant_ids', [me.id, profileUser.id])
+        .single()
+
+      if (!existing) {
+        // নতুন thread বানাও
+        await supabase.from('dm_threads').insert({
+          participant_ids: [me.id, profileUser.id],
+          is_request: friendStatus === 'accepted' ? false : true
+        })
+      }
+
+      // ✅ Desktop এ side DM open করো, mobile এ DM page এ যাও
+      if (window.innerWidth >= 768) {
+        toggleDM()
+      } else {
+        router.push('/dm')
+      }
     } catch (err: any) { toast.error(err.message) }
+  }
+
+  // Friend button text কী দেখাবে
+  function getFriendButtonText() {
+    if (statusLoading) return <i className="fa-solid fa-spinner fa-spin" />
+    if (friendStatus === 'accepted') return <><i className="fa-solid fa-user-check" /> Friends</>
+    if (friendStatus === 'pending') return <><i className="fa-solid fa-clock" /> Pending</>
+    return <><i className="fa-solid fa-user-plus" /> Add Friend</>
   }
 
   return (
@@ -63,58 +122,59 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
       <TopBar />
       <div className="pt-[44px]">
         <AppShell>
-          {/* Cover */}
-          <div className="h-[150px] bg-surf2 border-b border-bdr relative">
-            {isOwnProfile && (
-              <button className="absolute top-[9px] right-[9px] flex items-center gap-[5px] px-[10px] py-[5px] bg-surf2 border border-bdr rounded-[6px] text-[12px] font-semibold text-txt2 hover:border-bdr2 transition-colors">
-                <i className="fa-solid fa-camera" /> Edit
-              </button>
-            )}
-          </div>
+          {/* ✅ Cover photo section সরানো হয়েছে */}
 
           {/* Profile info */}
-          <div className="px-[18px] pb-[14px] bg-surf border-b border-bdr">
-            <div className="flex items-end justify-between mt-[-30px] mb-[9px]">
-              {/* Avatar — click for full size */}
+          <div className="px-[18px] pt-[18px] pb-[14px] bg-surf border-b border-bdr">
+            <div className="flex items-end justify-between mb-[9px]">
+              {/* Avatar */}
               <div className="relative">
                 <div
                   className="w-[76px] h-[76px] rounded-full border-[3px] border-surf cursor-pointer hover:opacity-88 transition-opacity overflow-hidden flex items-center justify-center font-bold text-white text-[22px]"
                   style={{ background: 'var(--acc)' }}
                   onClick={() => profileUser.avatar_url && setLbOpen(true)}
-                  title={profileUser.avatar_url ? 'Click to view full size' : ''}
                 >
                   {profileUser.avatar_url
                     ? <img src={profileUser.avatar_url} alt={profileUser.full_name} className="w-full h-full object-cover" />
-                    : profileUser.full_name.slice(0,2).toUpperCase()}
+                    : profileUser.full_name.slice(0, 2).toUpperCase()}
                 </div>
-                {isOwnProfile && (
-                  <div className="absolute bottom-[3px] right-[3px] w-5 h-5 bg-surf2 border-2 border-surf rounded-full flex items-center justify-center text-[9px] text-txt2 cursor-pointer">
-                    <i className="fa-solid fa-camera" />
-                  </div>
-                )}
               </div>
 
               {/* Actions */}
               <div className="flex gap-[5px] items-center">
                 {!isOwnProfile && (
                   <>
-                    <button onClick={startDM} className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors">
+                    {/* ✅ DM button এখন কাজ করবে */}
+                    <button onClick={startDM}
+                      className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors">
                       <i className="fa-regular fa-comment" />
                     </button>
+
                     {showPrem && (
-                      <button onClick={sendPremRequest} className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors" style={{ color: '#f472b6' }}>
-                        <i className="fa-solid fa-heart" />
+                      <button onClick={sendPremRequest}
+                        disabled={!!premStatus}
+                        className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors disabled:opacity-50"
+                        style={{ color: '#f472b6' }}>
+                        <i className={premStatus === 'accepted' ? 'fa-solid fa-heart' : 'fa-regular fa-heart'} />
                       </button>
                     )}
-                    <button onClick={sendFriendRequest} className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white hover:opacity-88 transition-opacity" style={{ background: 'var(--acc)' }}>
-                      <i className="fa-solid fa-user-plus" /> Add Friend
+
+                    {/* ✅ Friend button status অনুযায়ী দেখাবে */}
+                    <button onClick={sendFriendRequest}
+                      disabled={!!friendStatus || statusLoading}
+                      className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold text-white hover:opacity-88 transition-opacity disabled:opacity-60"
+                      style={{ background: friendStatus === 'accepted' ? '#22c55e' : 'var(--acc)' }}>
+                      {getFriendButtonText()}
                     </button>
                   </>
                 )}
+
+                {/* ✅ Edit Profile — settings এ নিয়ে যাবে */}
                 {isOwnProfile && (
-                  <button className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors">
+                  <Link href="/settings"
+                    className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors">
                     <i className="fa-solid fa-pen" /> Edit Profile
-                  </button>
+                  </Link>
                 )}
               </div>
             </div>
@@ -126,14 +186,37 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
             </div>
             <div className="text-[12.5px] text-txt2 mt-[2px]">@{profileUser.username}</div>
 
+            {/* Bio */}
+            {profileUser.bio && (
+              <div className="text-[12.5px] text-txt mt-[6px]">{profileUser.bio}</div>
+            )}
+
             {/* Meta */}
             <div className="flex gap-[12px] mt-[7px] flex-wrap">
               <MetaItem icon="fa-solid fa-building-columns" text={profileUser.department} />
               <MetaItem icon="fa-solid fa-calendar-days" text={profileUser.session} />
-              <MetaItem icon="fa-solid fa-id-card" text={`Roll: ${profileUser.board_roll}`} />
+              {profileUser.board_roll && <MetaItem icon="fa-solid fa-id-card" text={`Roll: ${profileUser.board_roll}`} />}
               <MetaItem icon="fa-solid fa-venus-mars" text={profileUser.gender} />
               <MetaItem icon="fa-regular fa-calendar" text={`DOB: ${formatDOB(profileUser.dob_day, profileUser.dob_month, profileUser.dob_year)}`} />
             </div>
+
+            {/* Social links */}
+            {(profileUser.facebook_url || profileUser.instagram_url) && (
+              <div className="flex gap-[8px] mt-[8px]">
+                {profileUser.facebook_url && (
+                  <a href={profileUser.facebook_url} target="_blank" rel="noopener noreferrer"
+                    className="text-[12px] text-txt3 hover:text-[#60a5fa] transition-colors">
+                    <i className="fa-brands fa-facebook" />
+                  </a>
+                )}
+                {profileUser.instagram_url && (
+                  <a href={profileUser.instagram_url} target="_blank" rel="noopener noreferrer"
+                    className="text-[12px] text-txt3 hover:text-[#f472b6] transition-colors">
+                    <i className="fa-brands fa-instagram" />
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* Stats */}
             <div className="flex gap-[18px] mt-[10px]">
@@ -159,7 +242,14 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
             ))}
             {activeTab === 'Posts' && initialPosts.length === 0 && (
               <div className="text-center py-[40px] text-txt3 text-[13px]">
-                <i className="fa-regular fa-note-sticky text-[32px] block mb-[8px] opacity-30" />No posts yet
+                <i className="fa-regular fa-note-sticky text-[32px] block mb-[8px] opacity-30" />
+                No posts yet
+              </div>
+            )}
+            {activeTab !== 'Posts' && (
+              <div className="text-center py-[40px] text-txt3 text-[13px]">
+                <i className="fa-solid fa-clock text-[32px] block mb-[8px] opacity-30" />
+                Coming soon...
               </div>
             )}
           </div>
@@ -181,7 +271,7 @@ function MetaItem({ icon, text }: { icon: string; text: string }) {
 
 function Stat({ n, label }: { n: number; label: string }) {
   return (
-    <div className="text-center">
+    <div>
       <div className="text-[17px] font-bold">{n}</div>
       <div className="text-[11px] text-txt2 mt-[1px]">{label}</div>
     </div>
