@@ -6,7 +6,7 @@ import Avatar from '@/components/ui/Avatar'
 import { timeAgo } from '@/lib/utils'
 
 export default function SideDM() {
-  const { close } = useDMStore()
+  const { close, isOpen, activeThreadId } = useDMStore()
   const { user } = useAuthStore()
   const [threads, setThreads] = useState<any[]>([])
   const [active, setActive] = useState<any>(null)
@@ -17,6 +17,16 @@ export default function SideDM() {
   useEffect(() => {
     if (user) loadThreads()
   }, [user])
+
+  // Auto-open thread when activeThreadId is set
+  useEffect(() => {
+    if (activeThreadId && threads.length > 0) {
+      const thread = threads.find(t => t.id === activeThreadId)
+      if (thread && (!active || active.id !== activeThreadId)) {
+        openThread(thread)
+      }
+    }
+  }, [activeThreadId, threads, active])
 
   // ✅ FIX: Realtime subscription — নতুন message এলে auto update হবে
   useEffect(() => {
@@ -97,6 +107,8 @@ export default function SideDM() {
     // Thread list refresh করো
     loadThreads()
   }
+
+  if (!isOpen) return null
 
   return (
     <div className="sticky top-[44px] h-[calc(100vh-44px)] flex flex-col overflow-hidden border-l"

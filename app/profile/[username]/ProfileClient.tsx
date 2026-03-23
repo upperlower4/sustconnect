@@ -16,11 +16,11 @@ import Link from 'next/link'
 
 const TABS = ['Posts', 'Jobs', 'Sells', 'Friends']
 
-interface Props { profileUser: User; initialPosts: Post[] }
+export interface Props { profileUser: User; initialPosts: Post[] }
 
 export default function ProfileClient({ profileUser, initialPosts }: Props) {
   const { user: me } = useAuthStore()
-  const { toggle: toggleDM } = useDMStore()
+  const { openThread } = useDMStore()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('Posts')
   const [lbOpen, setLbOpen] = useState(false)
@@ -55,7 +55,65 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
     }
 
     loadFriendStatus()
+
+    // Real-time subscription for friendship status updates
+    const channel = supabase
+      .channel(`friendship_${me.id}_${profileUser.id}`)
+      .on('postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'friendships',
+          filter: `or(user_id=eq.${me.id},friend_id=eq.${me.id}),or(user_id=eq.${profileUser.id},friend_id=eq.${profileUser.id})`
+        },
+        () => {
+          loadFriendStatus() // Refetch status when changes happen
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [me, profileUser.id, isOwnProfile])
+
+  async function cancelFriendRequest() {
+    if (!me) return
+
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .delete()
+        .eq('user_id', me.id)
+        .eq('friend_id', profileUser.id)
+        .eq('type', 'friend')
+        .eq('status', 'pending')
+
+      if (error) throw error
+
+      setFriendStatus(null)
+      toast.success('Friend Request বাতিল করা হয়েছে!')
+    } catch (err: any) { toast.error(err.message) }
+  }
+
+  async function cancelPremRequest() {
+    if (!me) return
+
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .delete()
+        .eq('user_id', me.id)
+        .eq('friend_id', profileUser.id)
+        .eq('type', 'prem')
+        .eq('status', 'pending')
+
+      if (error) throw error
+
+      setPremStatus(null)
+      toast.success('Prem Request বাতিল করা হয়েছে!')
+    } catch (err: any) { toast.error(err.message) }
+  }
 
   async function sendFriendRequest() {
     if (!me) { toast('Friend Request করতে Sign Up করো!', { icon: '🔒' }); return }
@@ -120,23 +178,32 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
   async function startDM() {
     if (!me) { toast('Message করতে Sign Up করো!', { icon: '🔒' }); return }
     try {
-      // ✅ FIX: .single() → .maybeSingle()
+      // Check if thread already exists
       const { data: existing } = await supabase
         .from('dm_threads')
         .select('id')
         .contains('participant_ids', [me.id, profileUser.id])
         .maybeSingle()
 
+      let threadId = existing?.id
+
       if (!existing) {
-        await supabase.from('dm_threads').insert({
+        // Create new thread
+        const { data: newThread, error } = await supabase.from('dm_threads').insert({
           participant_ids: [me.id, profileUser.id],
           is_request: friendStatus === 'accepted' ? false : true
-        })
+        }).select('id').single()
+
+        if (error) throw error
+        threadId = newThread.id
       }
 
       if (window.innerWidth >= 768) {
-        toggleDM()
+        // Desktop: Open side DM
+        const { openThread } = useDMStore.getState()
+        openThread(threadId)
       } else {
+        // Mobile: Navigate to DM page
         router.push('/dm')
       }
     } catch (err: any) { toast.error(err.message) }
@@ -163,10 +230,16 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
     }
     if (friendStatus === 'pending') {
       return (
-        <button disabled
-          className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold bg-surf2 border border-bdr text-txt2">
-          <i className="fa-solid fa-clock" /> Pending
-        </button>
+        <div className="flex gap-[5px]">
+          <button onClick={cancelFriendRequest}
+            className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold border border-red-500 text-red-500 hover:bg-red-50 transition-colors">
+            <i className="fa-solid fa-times" /> Cancel
+          </button>
+          <button disabled
+            className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px] text-[12px] font-semibold bg-surf2 border border-bdr text-txt2">
+            <i className="fa-solid fa-clock" /> Pending
+          </button>
+        </div>
       )
     }
     return (
@@ -204,12 +277,26 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
                     </button>
 
                     {showPrem && (
-                      <button onClick={sendPremRequest}
-                        disabled={!!premStatus}
-                        className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors disabled:opacity-50"
-                        style={{ color: '#f472b6' }}>
-                        <i className={premStatus === 'accepted' ? 'fa-solid fa-heart' : 'fa-regular fa-heart'} />
-                      </button>
+                      premStatus === 'pending' ? (
+                        <div className="flex gap-[5px]">
+                          <button onClick={cancelPremRequest}
+                            className="w-[30px] h-[30px] rounded-[7px] border border-red-500 text-red-500 flex items-center justify-center hover:bg-red-50 transition-colors"
+                            title="Cancel Prem Request">
+                            <i className="fa-solid fa-times text-[11px]" />
+                          </button>
+                          <button disabled
+                            className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center opacity-50">
+                            <i className="fa-solid fa-clock" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={premStatus === 'pending' ? cancelPremRequest : sendPremRequest}
+                          disabled={premStatus === 'accepted'}
+                          className="w-[30px] h-[30px] rounded-[7px] bg-surf2 border border-bdr text-[13px] flex items-center justify-center hover:border-bdr2 transition-colors disabled:opacity-50"
+                          style={{ color: '#f472b6' }}>
+                          <i className={premStatus === 'accepted' ? 'fa-solid fa-heart' : 'fa-regular fa-heart'} />
+                        </button>
+                      )
                     )}
 
                     {getFriendButton()}

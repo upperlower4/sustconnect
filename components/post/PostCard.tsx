@@ -38,6 +38,49 @@ export default function PostCard({ post }: { post: Post }) {
     }
     loadLoveState()
 
+    // Real-time subscription for love count updates
+    const loveChannel = supabase
+      .channel(`post_loves_${post.id}`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'post_loves', filter: `post_id=eq.${post.id}` },
+        () => {
+          // Refetch love count when changes happen
+          supabase
+            .from('posts')
+            .select('love_count')
+            .eq('id', post.id)
+            .single()
+            .then(({ data }) => {
+              if (data) setLoveCount(data.love_count)
+            })
+        }
+      )
+      .subscribe()
+
+    // Real-time subscription for comment count updates
+    const commentChannel = supabase
+      .channel(`post_comments_${post.id}`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${post.id}` },
+        () => {
+          // Refetch comment count when changes happen
+          supabase
+            .from('posts')
+            .select('comment_count')
+            .eq('id', post.id)
+            .single()
+            .then(({ data }) => {
+              if (data) {
+                // Update the post object to reflect new comment count
+                post.comment_count = data.comment_count
+                // Force re-render
+                setLoveCount(prev => prev + 0) // This triggers a re-render
+              }
+            })
+        }
+      )
+      .subscribe()
+
     const timer = setTimeout(async () => {
       try {
         const res = await fetch('/api/views', {
@@ -50,7 +93,11 @@ export default function PostCard({ post }: { post: Post }) {
       } catch {}
     }, 2000)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      supabase.removeChannel(loveChannel)
+      supabase.removeChannel(commentChannel)
+    }
   }, [post.id, user])
 
   async function handleLove() {

@@ -11,12 +11,12 @@ export async function POST(req: NextRequest) {
     const today = new Date().toISOString().split('T')[0]
 
     if (user) {
-      const { data } = await supabase.from('post_views').select('id').eq('post_id', postId).eq('user_id', user.id).gte('viewed_at', today).single()
+      const { data } = await supabase.from('post_views').select('id').eq('post_id', postId).eq('user_id', user.id).gte('viewed_at', today).maybeSingle()
       if (data) return NextResponse.json({ ok: false })
     } else {
       const { count } = await supabase.from('post_views').select('id', { count: 'exact' }).eq('ip_address', ip).gte('viewed_at', today)
       if ((count || 0) >= 50) return NextResponse.json({ ok: false, reason: 'rate_limit' })
-      const { data } = await supabase.from('post_views').select('id').eq('post_id', postId).eq('ip_address', ip).gte('viewed_at', today).single()
+      const { data } = await supabase.from('post_views').select('id').eq('post_id', postId).eq('ip_address', ip).gte('viewed_at', today).maybeSingle()
       if (data) return NextResponse.json({ ok: false })
     }
 

@@ -1,11 +1,11 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import ProfileClient from './ProfileClient'
+import ProfileClient, { Props as ProfileClientProps } from './ProfileClient'
 
-interface Props { params: { username: string } }
+interface PageProps { params: { username: string } }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const supabase = await createSupabaseServerClient()
   const { data: user } = await supabase.from('users').select('*').eq('username', params.username).single()
   if (!user) return { title: 'User Not Found' }
@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function ProfilePage({ params }: Props) {
+export default async function ProfilePage({ params }: PageProps) {
   const supabase = await createSupabaseServerClient()
   const { data: profileUser } = await supabase.from('users').select('*').eq('username', params.username).single()
   if (!profileUser) notFound()

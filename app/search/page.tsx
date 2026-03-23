@@ -51,7 +51,7 @@ export default function SearchPage() {
               <i className="fa-solid fa-magnifying-glass absolute left-[12px] top-1/2 -translate-y-1/2 text-txt3 text-[13px]" />
               <input value={query} onChange={e => setQuery(e.target.value)} autoFocus
                 placeholder="Search posts, people, jobs..."
-                className="w-full bg-surf border border-bdr rounded-[9px] py-[10px] pl-[36px] pr-[12px] text-[14px] text-txt placeholder:text-txt3 focus:border-[var(--acc)] transition-colors" />
+                className="w-full bg-surf border border-bdr rounded-[9px] py-[10px] pl-[36px] pr-[12px] text-[14px] placeholder:text-txt3 focus:border-[var(--acc)] transition-colors" style={{ color: 'var(--txt)' }} />
               {loading && <i className="fa-solid fa-spinner fa-spin absolute right-[12px] top-1/2 -translate-y-1/2 text-txt3 text-[13px]" />}
             </div>
 

@@ -240,7 +240,7 @@ export default function SignupPage() {
               <label className="block text-[10.5px] font-bold mb-[5px] uppercase tracking-[0.4px]" style={{ color:'var(--txt2)' }}>Date of Birth</label>
               <div className="grid gap-[8px]" style={{ gridTemplateColumns:'2fr 2fr 3fr' }}>
                 <Inp type="number" v={dobDay} s={setDobDay} ph="Day" min={1} max={31} />
-                <select value={dobMonth} onChange={e=>setDobMonth(e.target.value)} required className="rounded-[8px] py-[9px] pl-[10px] pr-[8px] text-[13px] border focus:outline-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: dobMonth ? 'var(--txt)' : 'var(--txt3)' }}>
+                <select value={dobMonth} onChange={e=>setDobMonth(e.target.value)} required className="rounded-[8px] py-[9px] pl-[10px] pr-[8px] text-[13px] border focus:outline-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: dobMonth ? 'var(--txt)' : 'var(--txt2)' }}>
                   <option value="">Month</option>
                   {MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}
                 </select>
@@ -254,7 +254,7 @@ export default function SignupPage() {
                 <label className="block text-[10.5px] font-bold mb-[5px] uppercase tracking-[0.4px]" style={{ color:'var(--txt2)' }}>Gender</label>
                 <div className="relative">
                   <i className="fa-solid fa-venus-mars absolute left-[11px] top-1/2 -translate-y-1/2 text-[12px] pointer-events-none" style={{ color:'var(--txt3)' }} />
-                  <select value={gender} onChange={e=>setGender(e.target.value)} required className="w-full rounded-[8px] py-[9px] pl-[32px] pr-[8px] text-[13px] border focus:outline-none appearance-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: gender?'var(--txt)':'var(--txt3)' }}>
+                  <select value={gender} onChange={e=>setGender(e.target.value)} required className="w-full rounded-[8px] py-[9px] pl-[32px] pr-[8px] text-[13px] border focus:outline-none appearance-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: gender?'var(--txt)':'var(--txt2)' }}>
                     <option value="">Select</option>
                     <option>Male</option><option>Female</option><option>Other</option>
                   </select>
@@ -264,7 +264,7 @@ export default function SignupPage() {
                 <label className="block text-[10.5px] font-bold mb-[5px] uppercase tracking-[0.4px]" style={{ color:'var(--txt2)' }}>Session</label>
                 <div className="relative">
                   <i className="fa-solid fa-calendar-days absolute left-[11px] top-1/2 -translate-y-1/2 text-[12px] pointer-events-none" style={{ color:'var(--txt3)' }} />
-                  <select value={session} onChange={e=>setSession(e.target.value)} required className="w-full rounded-[8px] py-[9px] pl-[32px] pr-[8px] text-[13px] border focus:outline-none appearance-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: session?'var(--txt)':'var(--txt3)' }}>
+                  <select value={session} onChange={e=>setSession(e.target.value)} required className="w-full rounded-[8px] py-[9px] pl-[32px] pr-[8px] text-[13px] border focus:outline-none appearance-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: session?'var(--txt)':'var(--txt2)' }}>
                     <option value="">Select</option>
                     {SESSIONS.map(s=><option key={s}>{s}</option>)}
                   </select>
@@ -277,7 +277,7 @@ export default function SignupPage() {
               <label className="block text-[10.5px] font-bold mb-[5px] uppercase tracking-[0.4px]" style={{ color:'var(--txt2)' }}>Department</label>
               <div className="relative">
                 <i className="fa-solid fa-building-columns absolute left-[11px] top-1/2 -translate-y-1/2 text-[12px] pointer-events-none" style={{ color:'var(--txt3)' }} />
-                <select value={dept} onChange={e=>setDept(e.target.value)} required className="w-full rounded-[8px] py-[9px] pl-[32px] pr-[8px] text-[13px] border focus:outline-none appearance-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: dept?'var(--txt)':'var(--txt3)' }}>
+                <select value={dept} onChange={e=>setDept(e.target.value)} required className="w-full rounded-[8px] py-[9px] pl-[32px] pr-[8px] text-[13px] border focus:outline-none appearance-none" style={{ background:'var(--surf2)', borderColor:'var(--bdr)', color: dept?'var(--txt)':'var(--txt2)' }}>
                   <option value="">Select Department</option>
                   {DEPARTMENTS.map(g=>(
                     <optgroup key={g.group} label={g.group}>

@@ -59,11 +59,15 @@ export const useLoveStore = create<LoveStore>()(
 
 interface DMStore {
   isOpen: boolean
+  activeThreadId?: string
+  openThread: (threadId?: string) => void
   toggle: () => void
   close: () => void
 }
 export const useDMStore = create<DMStore>()((set) => ({
   isOpen: false,
+  activeThreadId: undefined,
+  openThread: (threadId) => set({ isOpen: true, activeThreadId: threadId }),
   toggle: () => set((s) => ({ isOpen: !s.isOpen })),
-  close: () => set({ isOpen: false }),
+  close: () => set({ isOpen: false, activeThreadId: undefined }),
 }))

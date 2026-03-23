@@ -25,6 +25,13 @@ const NOTIF_ICONS: Record<string, { icon: string; color: string }> = {
   dm_message:      { icon: 'fa-regular fa-comment',  color: 'rgba(232,24,122,0.08)' },
 }
 
+// Sanitize HTML function
+function sanitizeHTML(html: string) {
+  const div = document.createElement('div')
+  div.textContent = html
+  return div.innerHTML
+}
+
 export default function NotificationsPage() {
   const { user } = useAuthStore()
   const router = useRouter()
@@ -89,7 +96,7 @@ export default function NotificationsPage() {
                   {isEmoji ? style?.icon : <i className={`${style?.icon} text-[var(--acc)]`} />}
                 </div>
                 <div className="flex-1">
-                  <div className="text-[12.5px] leading-[1.5]" dangerouslySetInnerHTML={{ __html: notif.body }} />
+                  <div className="text-[12.5px] leading-[1.5]">{sanitizeHTML(notif.body)}</div>
                   <div className="text-[10.5px] text-txt3 mt-[2px]">{timeAgo(notif.created_at)}</div>
                 </div>
                 {!notif.is_read && <div className="w-[6px] h-[6px] rounded-full flex-shrink-0 mt-[5px]" style={{ background: 'var(--acc)' }} />}
