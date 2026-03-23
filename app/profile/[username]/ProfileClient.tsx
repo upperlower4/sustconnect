@@ -40,7 +40,7 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
     async function loadFriendStatus() {
       const { data } = await supabase
         .from('friendships')
-        .select('status, type, user_id, friend_id')
+        .select('status, type')
         .or(
           `and(user_id.eq.${me!.id},friend_id.eq.${profileUser.id}),and(user_id.eq.${profileUser.id},friend_id.eq.${me!.id})`
         )
@@ -73,7 +73,6 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
         throw error
       }
 
-      // ✅ FIX: notification পাঠাও
       await supabase.from('notifications').insert({
         user_id: profileUser.id,
         type: 'friend_request',
@@ -104,7 +103,6 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
         throw error
       }
 
-      // ✅ FIX: notification পাঠাও
       await supabase.from('notifications').insert({
         user_id: profileUser.id,
         type: 'prem_request',
@@ -122,11 +120,12 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
   async function startDM() {
     if (!me) { toast('Message করতে Sign Up করো!', { icon: '🔒' }); return }
     try {
+      // ✅ FIX: .single() → .maybeSingle()
       const { data: existing } = await supabase
         .from('dm_threads')
         .select('id')
         .contains('participant_ids', [me.id, profileUser.id])
-        .single()
+        .maybeSingle()
 
       if (!existing) {
         await supabase.from('dm_threads').insert({
@@ -143,7 +142,6 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
     } catch (err: any) { toast.error(err.message) }
   }
 
-  // ✅ FIX: status অনুযায়ী সঠিক button দেখাবে
   function getFriendButton() {
     if (statusLoading) {
       return (
@@ -187,16 +185,14 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
         <AppShell>
           <div className="px-[18px] pt-[18px] pb-[14px] bg-surf border-b border-bdr">
             <div className="flex items-end justify-between mb-[9px]">
-              <div className="relative">
-                <div
-                  className="w-[76px] h-[76px] rounded-full border-[3px] border-surf cursor-pointer hover:opacity-88 transition-opacity overflow-hidden flex items-center justify-center font-bold text-white text-[22px]"
-                  style={{ background: 'var(--acc)' }}
-                  onClick={() => profileUser.avatar_url && setLbOpen(true)}
-                >
-                  {profileUser.avatar_url
-                    ? <img src={profileUser.avatar_url} alt={profileUser.full_name} className="w-full h-full object-cover" />
-                    : profileUser.full_name.slice(0, 2).toUpperCase()}
-                </div>
+              <div
+                className="w-[76px] h-[76px] rounded-full border-[3px] border-surf cursor-pointer hover:opacity-88 transition-opacity overflow-hidden flex items-center justify-center font-bold text-white text-[22px]"
+                style={{ background: 'var(--acc)' }}
+                onClick={() => profileUser.avatar_url && setLbOpen(true)}
+              >
+                {profileUser.avatar_url
+                  ? <img src={profileUser.avatar_url} alt={profileUser.full_name} className="w-full h-full object-cover" />
+                  : profileUser.full_name.slice(0, 2).toUpperCase()}
               </div>
 
               <div className="flex gap-[5px] items-center">

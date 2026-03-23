@@ -14,7 +14,6 @@ export default function PostCard({ post }: { post: Post }) {
   const { user } = useAuthStore()
   const [isLoved, setIsLoved] = useState<boolean>(false)
   const [loveCount, setLoveCount] = useState(post.love_count)
-  // ✅ FIX: view count সঠিকভাবে initialize হচ্ছে
   const [viewCount, setViewCount] = useState(post.view_count ?? 0)
   const [loveAnim, setLoveAnim] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -27,18 +26,18 @@ export default function PostCard({ post }: { post: Post }) {
 
     async function loadLoveState() {
       if (user) {
+        // ✅ FIX: .single() → .maybeSingle() — row না থাকলে error হবে না
         const { data } = await supabase
           .from('post_loves')
           .select('id')
           .eq('post_id', post.id)
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
         setIsLoved(!!data)
       }
     }
     loadLoveState()
 
-    // ✅ FIX: view count 2 সেকেন্ড পর update হবে এবং দেখাবে
     const timer = setTimeout(async () => {
       try {
         const res = await fetch('/api/views', {
@@ -47,7 +46,6 @@ export default function PostCard({ post }: { post: Post }) {
           body: JSON.stringify({ postId: post.id }),
         })
         const data = await res.json()
-        // ✅ শুধু নতুন view হলে count বাড়াবে
         if (data.ok) setViewCount(v => v + 1)
       } catch {}
     }, 2000)
@@ -62,7 +60,6 @@ export default function PostCard({ post }: { post: Post }) {
     }
 
     const newLoved = !isLoved
-    // ✅ FIX: আগে UI update করো — counter সাথে সাথে বদলাবে
     setIsLoved(newLoved)
     setLoveCount(c => newLoved ? c + 1 : c - 1)
 
@@ -74,9 +71,6 @@ export default function PostCard({ post }: { post: Post }) {
     try {
       if (newLoved) {
         await supabase.from('post_loves').insert({ post_id: post.id, user_id: user.id })
-
-        // ✅ FIX: Love করলে post owner কে notification পাঠাও
-        // নিজের post এ love করলে notification যাবে না
         if (post.user_id !== user.id && !post.is_anonymous) {
           await supabase.from('notifications').insert({
             user_id: post.user_id,
@@ -93,7 +87,6 @@ export default function PostCard({ post }: { post: Post }) {
           .eq('user_id', user.id)
       }
     } catch {
-      // ✅ Error হলে UI আগের state এ ফিরে যাবে
       setIsLoved(!newLoved)
       setLoveCount(c => newLoved ? c - 1 : c + 1)
       toast.error('Something went wrong!')
@@ -191,7 +184,6 @@ export default function PostCard({ post }: { post: Post }) {
             className="flex-1 flex items-center justify-center gap-[5px] py-[10px] text-[12px] font-medium transition-colors"
             style={{ color: heartColor }}>
             <i className={`${heartIcon} ${loveAnim ? 'animate-heart' : ''}`} />
-            {/* ✅ love count সাথে সাথে update হবে */}
             <span>{loveCount}</span>
           </button>
 
@@ -208,7 +200,6 @@ export default function PostCard({ post }: { post: Post }) {
             <i className="fa-solid fa-share-nodes" />
           </button>
 
-          {/* ✅ view count এখন সঠিকভাবে দেখাবে */}
           <div className="flex items-center justify-center gap-[5px] py-[10px] px-3 text-[11px]"
             style={{ color: 'var(--txt3)' }}>
             <i className="fa-regular fa-eye" />
