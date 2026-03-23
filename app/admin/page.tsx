@@ -209,6 +209,8 @@ export default function AdminPage() {
 }
 
 function ReportCard({ report, onDelete, onBan, onDismiss }: any) {
+  const userId = report.user_id || report.post?.user_id || report.user?.id
+  
   return (
     <div className="bg-surf border border-bdr rounded-[9px] p-[13px] mb-[8px]">
       <div className="flex items-center gap-[9px] mb-[9px]">
@@ -230,7 +232,7 @@ function ReportCard({ report, onDelete, onBan, onDismiss }: any) {
         <button onClick={() => onDelete(report.post_id)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold text-red-500 bg-red-500/8 border border-red-500/15 hover:bg-red-500/15 transition-colors">
           <i className="fa-solid fa-trash" /> Delete
         </button>
-        <button onClick={() => onBan(report.post?.user_id)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr text-red-500 hover:border-bdr2 transition-colors">
+        <button onClick={() => onBan(userId)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr text-red-500 hover:border-bdr2 transition-colors">
           <i className="fa-solid fa-ban" /> Ban
         </button>
         <button onClick={() => onDismiss(report.id)} className="flex items-center gap-[4px] px-[9px] py-[5px] rounded-[6px] text-[11.5px] font-semibold bg-surf2 border border-bdr hover:border-bdr2 transition-colors ml-auto">
