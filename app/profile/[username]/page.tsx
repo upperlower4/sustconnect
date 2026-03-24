@@ -1,7 +1,11 @@
 import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import ProfileClient, { Props as ProfileClientProps } from './ProfileClient'
+
+// Force dynamic rendering to prevent memory issues
+export const dynamic = 'force-dynamic'
 
 interface PageProps { params: { username: string } }
 

@@ -8,6 +8,9 @@ import AppShell from '@/components/layout/AppShell'
 import TopBar from '@/components/layout/TopBar'
 import BottomNav from '@/components/layout/BottomNav'
 import Avatar from '@/components/ui/Avatar'
+
+// Force dynamic rendering to prevent memory issues
+export const dynamic = 'force-dynamic'
 import { timeAgo } from '@/lib/utils'
 
 const NOTIF_ICONS: Record<string, { icon: string; color: string }> = {

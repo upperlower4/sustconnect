@@ -9,6 +9,9 @@ import PostCard from '@/components/post/PostCard'
 import Avatar from '@/components/ui/Avatar'
 import { useDebounce } from '@/hooks/useDebounce'
 
+// Force dynamic rendering to prevent memory issues
+export const dynamic = 'force-dynamic'
+
 export default function SearchPage() {
   const [query, setQuery] = useState('')
   const [posts, setPosts] = useState<any[]>([])

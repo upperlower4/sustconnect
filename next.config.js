@@ -13,7 +13,15 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    ssr: true,
+    // Remove invalid 'ssr' option
+    optimizePackageImports: ['react', 'react-dom'],
+  },
+  // Add memory optimization
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push('_http_common');
+    }
+    return config;
   },
 }
 
