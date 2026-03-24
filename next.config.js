@@ -13,14 +13,23 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    // Remove invalid 'ssr' option
     optimizePackageImports: ['react', 'react-dom'],
+    webpackBuildWorker: true,
+    parallelServerBuildTraces: true,
+    parallelServerCompiles: true,
   },
-  // Add memory optimization
+  // Reduce memory usage
+  staticPageGenerationTimeout: 120,
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push('_http_common');
     }
+    // Reduce memory pressure
+    config.optimization = {
+      ...config.optimization,
+      minimize: true,
+      moduleIds: 'deterministic',
+    };
     return config;
   },
 }
