@@ -1,5 +1,4 @@
 import { Metadata } from 'next'
-import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import ProfileClient, { Props as ProfileClientProps } from './ProfileClient'

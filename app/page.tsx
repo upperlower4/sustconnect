@@ -1,6 +1,9 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import FeedClient from './FeedClient'
 
+// Force dynamic to prevent memory issues during build
+export const dynamic = 'force-dynamic'
+
 export default async function HomePage() {
   const supabase = await createSupabaseServerClient()
   const { data: posts } = await supabase

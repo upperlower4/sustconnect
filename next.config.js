@@ -12,24 +12,22 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Force dynamic rendering to reduce memory usage
+  output: 'standalone',
+  // Disable static optimization for heavy pages
+  unstable_runtimeJS: true,
   experimental: {
     optimizePackageImports: ['react', 'react-dom'],
     webpackBuildWorker: true,
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
+    parallelServerBuildTraces: false,
+    parallelServerCompiles: false,
   },
   // Reduce memory usage
-  staticPageGenerationTimeout: 120,
+  staticPageGenerationTimeout: 60,
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push('_http_common');
     }
-    // Reduce memory pressure
-    config.optimization = {
-      ...config.optimization,
-      minimize: true,
-      moduleIds: 'deterministic',
-    };
     return config;
   },
 }
