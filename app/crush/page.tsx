@@ -8,6 +8,9 @@ import TopBar from '@/components/layout/TopBar'
 import BottomNav from '@/components/layout/BottomNav'
 import toast from 'react-hot-toast'
 
+// Force dynamic rendering to prevent encoding issues
+export const dynamic = 'force-dynamic'
+
 export default function CrushPage() {
   const { user } = useAuthStore()
   const router = useRouter()
