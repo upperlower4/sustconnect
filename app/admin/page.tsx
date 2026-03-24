@@ -10,6 +10,9 @@ import Badge from '@/components/ui/Badge'
 import { timeAgo } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 const NAV = [
   { id: 'dashboard', icon: 'fa-solid fa-chart-line', label: 'Dashboard' },
   { id: 'reports',   icon: 'fa-solid fa-flag',        label: 'Reports',  badge: 0, color: '#ef4444' },
