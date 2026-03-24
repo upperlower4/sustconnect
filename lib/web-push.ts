@@ -1,10 +1,20 @@
 import webpush from 'web-push'
 
-webpush.setVapidDetails(
-  'mailto:admin@sustconnect.vercel.app',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+// Lazy initialization to prevent build-time errors when env vars aren't available
+function initWebPush() {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const privateKey = process.env.VAPID_PRIVATE_KEY
+  
+  if (!publicKey || !privateKey) {
+    throw new Error('VAPID keys not configured')
+  }
+  
+  webpush.setVapidDetails(
+    'mailto:admin@sustconnect.vercel.app',
+    publicKey,
+    privateKey
+  )
+}
 
 export interface PushPayload {
   title: string
@@ -13,6 +23,9 @@ export interface PushPayload {
 }
 
 export async function sendPushToUser(supabase: any, userId: string, payload: PushPayload) {
+  // Initialize only when needed (runtime)
+  initWebPush()
+  
   const { data: subs } = await supabase
     .from('push_subscriptions')
     .select('*')
