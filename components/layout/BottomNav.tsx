@@ -24,6 +24,23 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('Posts')
   const [lbOpen, setLbOpen] = useState(false)
+  
+  // Early return if profileUser is missing
+  if (!profileUser) {
+    return (
+      <>
+        <TopBar />
+        <div className="pt-[44px] flex min-h-[calc(100vh-44px)]">
+          <div className="flex-1 p-[18px] text-center">
+            <div className="text-[17px] font-bold mb-[14px]">User Not Found</div>
+            <div className="text-[13px] text-txt2">This user profile could not be loaded.</div>
+          </div>
+        </div>
+        <BottomNav />
+      </>
+    )
+  }
+  
   const isOwnProfile = me?.id === profileUser.id
   const showPrem = me && me.gender !== profileUser.gender
 
@@ -36,11 +53,13 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
     if (!me || isOwnProfile) { setStatusLoading(false); return }
 
     async function loadFriendStatus() {
+      if (!profileUser?.id) return
+      
       const { data } = await supabase
         .from('friendships')
         .select('status, type')
         .or(
-          `and(user_id.eq.${me!.id},friend_id.eq.${profileUser.id}),and(user_id.eq.${profileUser.id},friend_id.eq.${me!.id})`
+          `and(user_id.eq.${me!.id},friend_id.eq.${profileUser!.id}),and(user_id.eq.${profileUser!.id},friend_id.eq.${me!.id})`
         )
 
       if (data && data.length > 0) {
@@ -53,7 +72,7 @@ export default function ProfileClient({ profileUser, initialPosts }: Props) {
     }
 
     loadFriendStatus()
-  }, [me, profileUser.id, isOwnProfile])
+  }, [me, profileUser?.id, isOwnProfile])
 
   async function sendFriendRequest() {
     if (!me) { toast('Friend Request করতে Sign Up করো!', { icon: '🔒' }); return }
